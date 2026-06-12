@@ -6,13 +6,13 @@ export const revalidate = 86400;
 
 // Keep the source of truth in one place so the metadata + the
 // visible page heading agree.
-const LAST_UPDATED = "13 May 2026";
+const LAST_UPDATED = "13 June 2026";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
-  const title = "Privacy policy — frockd";
+  const title = "Privacy policy — BlogSeeder";
   const description =
-    "How frockd collects, uses, stores, and shares your information. Australian Privacy Principles (APP) compliant.";
+    "How BlogSeeder collects, uses, stores, and shares your information — including the content you send to our AI and web-research providers. Australian Privacy Principles (APP) compliant.";
   return {
     title,
     description,
@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       url: `${baseUrl}/privacy`,
       title,
       description,
-      siteName: "frockd",
+      siteName: "BlogSeeder",
     },
     twitter: { card: "summary", title, description },
   };
@@ -32,6 +32,7 @@ const SECTIONS: Array<{ id: string; label: string }> = [
   { id: "who-we-are", label: "Who we are" },
   { id: "information-we-collect", label: "Information we collect" },
   { id: "how-we-use-it", label: "How we use your information" },
+  { id: "ai-and-web", label: "AI generation & web research" },
   { id: "sharing", label: "Sharing & third parties" },
   { id: "cookies", label: "Cookies & local storage" },
   { id: "retention", label: "How long we keep your data" },
@@ -70,9 +71,9 @@ export default function PrivacyPolicyPage() {
               lineHeight: 1.55,
             }}
           >
-            How frockd collects, uses, stores, and shares the information
-            you give us — and the rights you have to access, correct, or
-            delete it.
+            How BlogSeeder collects, uses, stores, and shares the information you
+            give us — including what we send to the AI and web-research services
+            that power the product — and the rights you have over it.
           </p>
           <p
             style={{
@@ -137,18 +138,15 @@ export default function PrivacyPolicyPage() {
           <section id="who-we-are">
             <h2>1. Who we are</h2>
             <p>
-              frockd is a peer-to-peer marketplace for pre-loved formal
-              dresses, operated in Australia and accessed at{" "}
-              <a href="https://www.frockd.com.au">www.frockd.com.au</a>.
-              When we say &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
-              &ldquo;frockd,&rdquo; we mean the operator of the
-              marketplace.
+              BlogSeeder is an AI tool for researching and generating
+              SEO-focused blog posts, operated from Australia. When we say
+              &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;BlogSeeder,&rdquo; we
+              mean the operator of this service.
             </p>
             <p>
-              This policy is written to align with the Australian
-              Privacy Principles (APP) under the{" "}
-              <em>Privacy Act 1988 (Cth)</em>. It applies to every
-              visitor and registered user of the site, anywhere in the
+              This policy is written to align with the Australian Privacy
+              Principles (APP) under the <em>Privacy Act 1988 (Cth)</em>. It
+              applies to every visitor and registered user, anywhere in the
               world.
             </p>
           </section>
@@ -159,268 +157,255 @@ export default function PrivacyPolicyPage() {
             <h3>2.1 Information you give us</h3>
             <ul>
               <li>
-                <strong>Account details</strong> — email address (used as
-                your username), password (stored only as a salted
-                bcrypt hash, never in plain text), optional first name,
-                surname, title, town, and postcode.
+                <strong>Account details</strong> — your email address (used as
+                your username), password (stored only as a salted bcrypt hash,
+                never in plain text), and optional first name, surname, and
+                title.
               </li>
               <li>
-                <strong>Body measurements</strong> — optional bust,
-                waist, and hips measurements (cm) you enter on your
-                profile to power the fit calculator. These are visible
-                only to you; we never expose them to sellers, buyers,
-                or any third party.
+                <strong>Brand profile</strong> — the optional details you add to
+                shape how the AI writes for you: brand/blog name, website URL,
+                audience, voice &amp; tone, humour, point of view, key facts
+                &amp; stats, stories, and things to avoid. These are tied to your
+                account and used to steer generation.
               </li>
               <li>
-                <strong>Listings</strong> — photos, designer, model,
-                year, measurements of the dress, condition, occasion,
-                price, location postcode, and any descriptive text
-                you provide.
+                <strong>Blog seeds &amp; research</strong> — the subjects and
+                starter keywords you enter, plus the keyword clusters, SERP /
+                web-research notes, and image selections produced as you work
+                through the seed wizard.
               </li>
               <li>
-                <strong>Messages</strong> — the content of
-                conversations you exchange with other users about a
-                listing, and direct messages with our admin team.
-              </li>
-              <li>
-                <strong>Sale records and reviews</strong> — when a
-                seller marks a listing sold to an attributed buyer, we
-                record the buyer-seller pair so the buyer can leave a
-                review. Reviews you submit (star rating, body, yes/no
-                checks) are public on the seller&rsquo;s profile.
+                <strong>Generated content</strong> — the posts you create or
+                generate: titles, excerpts, Markdown body, tags, and any hero
+                image you upload (stored with the post).
               </li>
             </ul>
 
             <h3>2.2 Information collected automatically</h3>
             <ul>
               <li>
-                <strong>Approximate location</strong> — derived once
-                from your IP address (at the city/region level, not a
-                precise location) to set your default browse region.
-                You can override this at any time via the region picker.
+                <strong>Post views</strong> — when a published post is opened we
+                record the post and, if the reader is signed in, their account
+                id (admin views are skipped; anonymous views are counted without
+                identifying the reader). We do <em>not</em> store readers&rsquo;
+                IP addresses for this. It drives the view counts on your
+                dashboard.
               </li>
               <li>
-                <strong>Listing views</strong> — we record which
-                listings each visitor opens, identified by a salted
-                hash of your IP address (not the IP itself). This
-                drives anonymous view counts on listing pages and
-                seller dashboards.
+                <strong>Standard request logs</strong> — our hosting provider
+                records HTTP requests (URL, status code, timestamp, IP address)
+                for security and debugging.
               </li>
               <li>
-                <strong>Cookies</strong> — see section 5 below.
-              </li>
-              <li>
-                <strong>Standard request logs</strong> — our hosting
-                provider records HTTP requests (URL, status code,
-                timestamp, anonymised IP) for security and debugging
-                purposes.
+                <strong>Cookies</strong> — see section 6.
               </li>
             </ul>
-
-            <h3>2.3 Information from third parties</h3>
-            <ul>
-              <li>
-                <strong>Referrals</strong> — if you arrive via another
-                user&rsquo;s referral link, that user&rsquo;s id is
-                associated with your account so they receive credit
-                for the referral.
-              </li>
-            </ul>
+            <p>
+              We don&rsquo;t buy personal information about you from third
+              parties or data brokers.
+            </p>
           </section>
 
           <section id="how-we-use-it">
             <h2>3. How we use your information</h2>
             <ul>
               <li>
-                To operate the marketplace — let you list, browse, buy,
-                and message other users.
+                To run the product — let you create seeds, research keywords and
+                search results, generate and edit drafts, and manage and publish
+                your blog.
               </li>
               <li>
-                To authenticate you when you sign in and keep your
-                session active.
+                To authenticate you when you sign in and keep your session
+                active.
               </li>
               <li>
-                To send transactional emails — email verification,
-                password reset, new-message notifications, review
-                prompts, relist nudges, saved-search digests. We never
-                send marketing emails without your explicit consent.
+                To send transactional emails — email verification, password
+                reset, and email-change confirmation. We never send marketing
+                emails without your explicit consent.
+              </li>
+              <li>To power the AI and research features — see section 4.</li>
+              <li>
+                To operate and secure the service, investigate misuse, and
+                comply with our legal obligations.
               </li>
               <li>
-                To compute private features for you — fit assessments
-                against listings, your personal stats, dress provenance.
-              </li>
-              <li>
-                To moderate the platform — investigate buyer reports,
-                hide harmful content, suspend accounts that breach our
-                terms.
-              </li>
-              <li>
-                To improve frockd — aggregate, de-identified analytics
-                on traffic patterns, listing performance, and feature
-                usage.
-              </li>
-              <li>
-                To comply with legal obligations — for example,
-                responding to a lawful request from Australian
-                authorities.
+                To improve BlogSeeder using aggregate, de-identified usage
+                analytics.
               </li>
             </ul>
             <p>
-              We do not sell your personal information. We do not run
-              third-party ad networks on the site.
+              We do not sell your personal information, and we do not run
+              third-party advertising networks on the site.
+            </p>
+          </section>
+
+          <section id="ai-and-web">
+            <h2>4. AI generation &amp; web research</h2>
+            <p>
+              Generating content is the core of BlogSeeder, and it necessarily
+              sends some of your content to external services:
+            </p>
+            <ul>
+              <li>
+                <strong>AI generation</strong> — when you expand keywords, run
+                research, or generate a post, we send the relevant inputs (your
+                topic and keywords, the seed&rsquo;s research, and your brand
+                profile) to our AI provider, <strong>Anthropic</strong>, to
+                produce the result. Under Anthropic&rsquo;s commercial API
+                terms, this content is processed to return your output and is
+                not used to train their models.
+              </li>
+              <li>
+                <strong>Web research</strong> — the research steps use the AI
+                provider&rsquo;s web-search and page-fetch tools to look up
+                publicly available pages based on your keywords and summarise
+                what currently ranks. The searches reflect the keywords you
+                provide.
+              </li>
+              <li>
+                <strong>Images</strong> — when you add imagery we send your
+                search phrases to our image provider, <strong>Pexels</strong>,
+                to return stock photos. Body images are linked from Pexels; a
+                hero image you choose is stored with your post.
+              </li>
+            </ul>
+            <p>
+              AI output can be inaccurate or generic — you are responsible for
+              reviewing and editing every draft before you publish it. Please
+              don&rsquo;t put personal, sensitive, or confidential information
+              you wouldn&rsquo;t want processed by these providers into seeds,
+              prompts, or brand-profile fields.
             </p>
           </section>
 
           <section id="sharing">
-            <h2>4. Sharing &amp; third parties</h2>
+            <h2>5. Sharing &amp; third parties</h2>
             <p>
-              Some of your information is necessarily handled by service
-              providers we use to operate the site. We pick providers
-              with strong privacy commitments and only share what each
-              actually needs:
+              Some of your information is necessarily handled by the service
+              providers we use to run BlogSeeder. We pick providers with strong
+              privacy commitments and share only what each one needs:
             </p>
             <ul>
               <li>
-                <strong>Railway</strong> — our hosting and database
-                provider. Your data is stored on their managed
-                PostgreSQL service.
+                <strong>Railway</strong> — our hosting and database provider.
+                Your data is stored on their managed PostgreSQL service.
               </li>
               <li>
-                <strong>Resend</strong> — used to send transactional
-                emails. They receive the recipient address and the
-                email body for each message.
+                <strong>Resend</strong> — sends our transactional emails. They
+                receive the recipient address and the email body for each
+                message.
               </li>
               <li>
-                <strong>Anthropic</strong> — powers the value estimator
-                and blog drafting tool. Anthropic only receives the
-                listing details you enter into those tools, not your
-                account information.
+                <strong>Anthropic</strong> — powers keyword clustering, web
+                research, and post generation (see section 4). Receives the
+                content you run through those tools, not your password or login
+                details.
               </li>
               <li>
-                <strong>Pinterest</strong> — when an admin pins one of
-                your listings to Pinterest to promote it, the
-                listing&rsquo;s photo, title, description, and public
-                URL are sent to Pinterest. No buyer information is
-                shared.
-              </li>
-              <li>
-                <strong>GeoNames</strong> — open postcode data we
-                consume; no personal information is sent.
+                <strong>Pexels</strong> — image search. Receives the search
+                phrases you use to find photos; no account information is sent.
               </li>
             </ul>
             <p>
-              Other users can see information you make public on the
-              site: the listings you publish, your seller profile, and
-              any reviews you write. We don&rsquo;t expose your email
-              address to other users unless you choose to share it via
-              the messaging system.
+              <strong>Published posts are public.</strong> Anything you publish
+              to your blog is visible to anyone on the web and may be indexed by
+              search engines when indexing is enabled. A post you
+              &ldquo;copy to your own website&rdquo; then lives on your site,
+              under your control and policies, not ours.
             </p>
             <p>
-              We do not transfer personal data to any party outside
-              Australia for marketing purposes. Some service providers
-              listed above process data in jurisdictions other than
-              Australia; we ensure each provides comparable privacy
-              protection before integrating.
+              We do not transfer personal data overseas for marketing. Some of
+              the providers above process data in jurisdictions other than
+              Australia; we choose providers that offer comparable privacy
+              protection.
             </p>
           </section>
 
           <section id="cookies">
-            <h2>5. Cookies &amp; local storage</h2>
+            <h2>6. Cookies &amp; local storage</h2>
             <p>
-              We use a small number of first-party cookies. We do not
-              use third-party advertising cookies or trackers.
+              We use only a small number of first-party cookies. We do not use
+              third-party advertising cookies or trackers.
             </p>
             <ul>
               <li>
-                <strong>session</strong> — keeps you signed in. Expires
-                30 days after your last activity or when you log out.
+                <strong>session</strong> — keeps you signed in. Marked HttpOnly
+                and Secure. Expires 30 days after your last activity, or when you
+                log out.
               </li>
               <li>
-                <strong>frockd_ref</strong> — records the referral code
-                you arrived with so the inviter gets credit when you
-                sign up. Expires 30 days after issue.
+                <strong>status cookies</strong> — short-lived cookies set during
+                email verification and email-change so we can show a one-time
+                confirmation message, then discarded.
               </li>
               <li>
-                <strong>anon_loc</strong> — caches the city your IP
-                resolves to so we don&rsquo;t re-look-up on every
-                request. Plain string, no precise location, expires 30
-                days after issue.
-              </li>
-              <li>
-                <strong>frockd_friends_seen</strong> — a small number
-                tracking how many of your referred friends had crossed
-                the Verified threshold the last time you visited the
-                refer page (drives the &ldquo;new conversions&rdquo;
-                banner). Expires after 1 year.
+                <strong>theme</strong> — your light/dark preference, stored in
+                your browser&rsquo;s local storage (not a cookie). It stays in
+                your browser and is never sent to us.
               </li>
             </ul>
             <p>
-              You can clear all of these from your browser at any time;
-              you&rsquo;ll be logged out and lose referral attribution
-              until the next link click. The site works fine without
-              cookies, though you won&rsquo;t be able to stay signed
-              in.
+              You can clear these from your browser at any time; you&rsquo;ll be
+              logged out, but the rest of the site still works.
             </p>
           </section>
 
           <section id="retention">
-            <h2>6. How long we keep your data</h2>
+            <h2>7. How long we keep your data</h2>
             <ul>
               <li>
-                <strong>Account data</strong> — kept while your account
-                is active. You can request deletion via your profile
-                at any time; we&rsquo;ll remove your personal
-                information within 30 days of the request.
+                <strong>Account data</strong> — kept while your account is
+                active. You can delete your account from your profile at any
+                time; we remove your personal information within 30 days, minus
+                anything we&rsquo;re legally required to retain.
               </li>
               <li>
-                <strong>Listings</strong> — kept indefinitely so the
-                dress&rsquo;s ownership history (the
-                &ldquo;provenance&rdquo; trail on each dress) remains
-                accurate across resales. Listings are anonymised if
-                their seller deletes their account.
+                <strong>Brand profile, seeds, research &amp; drafts</strong> —
+                kept while your account is active, and deleted or de-identified
+                when you delete your account.
               </li>
               <li>
-                <strong>Messages</strong> — kept while both
-                participants&rsquo; accounts exist. Removed when either
-                account is deleted.
+                <strong>Published posts</strong> — kept while they&rsquo;re live.
+                Note that once a post is public, search engines and others may
+                hold cached copies we can&rsquo;t remove, and any post you copied
+                to your own website is controlled by you there.
               </li>
               <li>
-                <strong>Verification &amp; reset tokens</strong> —
-                deleted automatically when they expire (typically
-                within hours of being sent).
+                <strong>Verification &amp; reset tokens</strong> — deleted
+                automatically when they expire (typically within hours of being
+                sent).
               </li>
               <li>
-                <strong>Request logs</strong> — retained by our hosting
-                provider for the period required for security
-                investigations, then deleted.
+                <strong>Request logs</strong> — retained by our hosting provider
+                for the period needed for security, then deleted.
               </li>
             </ul>
           </section>
 
           <section id="your-rights">
-            <h2>7. Your rights</h2>
+            <h2>8. Your rights</h2>
             <p>Under Australian privacy law, you have the right to:</p>
             <ul>
               <li>
-                Access the personal information we hold about you.
-                Most of it is visible on your profile and listings
-                pages; if you need the rest, contact us (see section
-                11).
+                Access the personal information we hold about you. Most of it is
+                visible in your <Link href="/profile">profile</Link> and your
+                posts; for anything else, contact us (see section 12).
               </li>
               <li>
-                Correct anything inaccurate. You can edit your profile
-                and listings yourself; for anything else, contact us.
+                Correct anything inaccurate. You can edit your profile, brand
+                profile, and posts yourself; for anything else, contact us.
               </li>
               <li>
-                Request deletion of your account. We&rsquo;ll remove
-                your personal information within 30 days, subject to
-                any data we&rsquo;re legally required to retain.
+                Delete your account from your{" "}
+                <Link href="/profile">profile</Link>. We remove your personal
+                information within 30 days, subject to any data we&rsquo;re
+                legally required to keep.
               </li>
               <li>
-                Make a privacy complaint. We&rsquo;ll respond within
-                30 days. If you&rsquo;re not satisfied, you can
-                escalate to the Office of the Australian Information
-                Commissioner (OAIC) at{" "}
+                Make a privacy complaint. We&rsquo;ll respond within 30 days. If
+                you&rsquo;re not satisfied, you can escalate to the Office of the
+                Australian Information Commissioner (OAIC) at{" "}
                 <a
                   href="https://www.oaic.gov.au"
                   target="_blank"
@@ -434,55 +419,51 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section id="security">
-            <h2>8. Security</h2>
+            <h2>9. Security</h2>
             <p>
-              We protect your information with industry-standard
-              practices: HTTPS for every page, bcrypt hashing for
-              passwords (never stored in plain text), session cookies
-              marked HttpOnly and Secure, salted IP hashing for view
-              tracking, and an admin moderation layer for reported
-              content. Our hosting provider applies further protections
-              at the infrastructure layer.
+              We protect your information with industry-standard practices: HTTPS
+              for every page, bcrypt hashing for passwords (never stored in plain
+              text), session cookies marked HttpOnly and Secure, and an admin
+              layer for operating the service. Our hosting provider applies
+              further protections at the infrastructure layer.
             </p>
             <p>
-              No system is perfectly secure. If we ever detect a data
-              breach that meets the threshold under Australia&rsquo;s
-              Notifiable Data Breaches scheme, we&rsquo;ll notify
-              affected users and the OAIC as required by law.
+              No system is perfectly secure. If we ever detect a data breach that
+              meets the threshold under Australia&rsquo;s Notifiable Data
+              Breaches scheme, we&rsquo;ll notify affected users and the OAIC as
+              required by law.
             </p>
           </section>
 
           <section id="children">
-            <h2>9. Children&rsquo;s privacy</h2>
+            <h2>10. Children&rsquo;s privacy</h2>
             <p>
-              frockd is intended for users aged 18 and over. We
-              don&rsquo;t knowingly collect information from children
-              under 18. If you become aware that a minor has created
-              an account, contact us and we&rsquo;ll remove the
-              account.
+              BlogSeeder is intended for users aged 18 and over. We don&rsquo;t
+              knowingly collect information from children under 18. If you become
+              aware that a minor has created an account, contact us and
+              we&rsquo;ll remove it.
             </p>
           </section>
 
           <section id="changes">
-            <h2>10. Changes to this policy</h2>
+            <h2>11. Changes to this policy</h2>
             <p>
-              We may update this policy from time to time — to reflect
-              new features, new service providers, or changes in
-              Australian privacy law. The &ldquo;last updated&rdquo;
-              date at the top tells you when it last changed. Material
-              changes will also be flagged on the site or notified by
-              email.
+              We may update this policy from time to time — to reflect new
+              features, new service providers, or changes in Australian privacy
+              law. The &ldquo;last updated&rdquo; date at the top tells you when
+              it last changed. Material changes will also be flagged on the site
+              or notified by email.
             </p>
           </section>
 
           <section id="contact">
-            <h2>11. Contact us</h2>
+            <h2>12. Contact us</h2>
             <p>
-              Privacy questions, access or correction requests, and
-              complaints can be raised via our{" "}
-              <Link href="/support">support page</Link>. We respond
-              within 30 days for privacy matters and faster where we
-              can.
+              You can exercise most of your rights yourself from your{" "}
+              <Link href="/profile">profile</Link> — edit your details or delete
+              your account. For other privacy questions, access or correction
+              requests, and complaints, contact the site operator; we respond
+              within 30 days for privacy matters and faster where we can.
             </p>
           </section>
         </article>
