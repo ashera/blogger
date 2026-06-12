@@ -5,6 +5,35 @@ const API_VERSION = "2023-06-01";
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 1500;
 
+// Retry config for transient failures (rate limits / overload). The
+// per-minute token limits reset each minute, so honouring the server's
+// retry-after lets a generation wait out the window instead of failing.
+const MAX_RETRIES = 3;
+const RETRYABLE_STATUS = new Set([429, 500, 503, 529]);
+const MAX_BACKOFF_MS = 60_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * How long to wait before the next attempt. Prefers the server's
+ * `retry-after` (seconds) — authoritative for the per-minute token window —
+ * then falls back to exponential backoff with jitter. Capped so a server
+ * action never blocks unreasonably long.
+ */
+function retryDelayMs(headers: Headers, attempt: number): number {
+  const retryAfter = headers.get("retry-after");
+  if (retryAfter) {
+    const secs = Number(retryAfter);
+    if (Number.isFinite(secs) && secs >= 0) {
+      return Math.min(secs * 1000 + 250, MAX_BACKOFF_MS);
+    }
+  }
+  const base = Math.min(1000 * 2 ** attempt, MAX_BACKOFF_MS);
+  return base + Math.floor(base * 0.25 * Math.random());
+}
+
 // Server-managed tool definitions. Tool versions evolve — bump if Anthropic
 // publishes a newer one and the API rejects these.
 export const WEB_SEARCH_TOOL = {
@@ -17,6 +46,10 @@ export const WEB_FETCH_TOOL = {
   type: "web_fetch_20260309",
   name: "web_fetch",
   max_uses: 3,
+  // Cap how much of each fetched page is pulled into context. Whole pages
+  // can be tens of thousands of tokens; without this, three fetches can
+  // blow the per-minute input-token budget on their own.
+  max_content_tokens: 5000,
 } as const;
 
 export type Message = { role: "user" | "assistant"; content: string };
@@ -74,76 +107,99 @@ export async function callClaude(opts: CallOpts): Promise<CallResult> {
     return { ok: false, error: "ANTHROPIC_API_KEY not configured" };
   }
   const model = opts.model ?? DEFAULT_MODEL;
-  try {
-    const body: Record<string, unknown> = {
-      model,
-      max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
-      system: opts.system,
-      messages: opts.messages,
-    };
-    if (opts.tools && opts.tools.length > 0) {
-      body.tools = opts.tools;
-    }
-    if (opts.toolChoice) {
-      body.tool_choice = opts.toolChoice;
-    }
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": API_VERSION,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => `${res.status}`);
-      return { ok: false, error: `Anthropic ${res.status}: ${detail}` };
-    }
-    const json = (await res.json()) as {
-      content?: Array<{
-        type: string;
-        text?: string;
-        id?: string;
-        name?: string;
-        input?: unknown;
-      }>;
-      stop_reason?: string;
-    };
-    const blocks = json.content ?? [];
-    // Server-managed tools (web_search, web_fetch) emit non-text content
-    // blocks (server_tool_use, web_search_tool_result, etc.) inline. We
-    // ignore those and just return the model's final text + any
-    // client-side tool_use blocks the caller asked for.
-    const text = blocks
-      .filter((b) => b.type === "text")
-      .map((b) => b.text ?? "")
-      .join("")
-      .trim();
-    const toolUses: ToolUseBlock[] = blocks
-      .filter((b) => b.type === "tool_use" && b.id && b.name)
-      .map((b) => ({
-        id: b.id as string,
-        name: b.name as string,
-        input: b.input,
-      }));
-    if (!text && toolUses.length === 0) {
-      return { ok: false, error: "Empty response from Anthropic" };
-    }
-    return {
-      ok: true,
-      text,
-      model,
-      toolUses,
-      stopReason: json.stop_reason ?? null,
-      raw: json,
-    };
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : String(e),
-    };
+  const body: Record<string, unknown> = {
+    model,
+    max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
+    system: opts.system,
+    messages: opts.messages,
+  };
+  if (opts.tools && opts.tools.length > 0) {
+    body.tools = opts.tools;
   }
+  if (opts.toolChoice) {
+    body.tool_choice = opts.toolChoice;
+  }
+  const payload = JSON.stringify(body);
+
+  let lastError = "Anthropic request failed";
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": API_VERSION,
+          "content-type": "application/json",
+        },
+        body: payload,
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => `${res.status}`);
+        lastError = `Anthropic ${res.status}: ${detail}`;
+        // Rate-limited / transiently overloaded: wait out the window and
+        // retry rather than failing the whole generation.
+        if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_RETRIES) {
+          const wait = retryDelayMs(res.headers, attempt);
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[anthropic] ${res.status} (attempt ${attempt + 1}/${
+              MAX_RETRIES + 1
+            }) — retrying in ${Math.round(wait / 1000)}s`,
+          );
+          await sleep(wait);
+          continue;
+        }
+        return { ok: false, error: lastError };
+      }
+      const json = (await res.json()) as {
+        content?: Array<{
+          type: string;
+          text?: string;
+          id?: string;
+          name?: string;
+          input?: unknown;
+        }>;
+        stop_reason?: string;
+      };
+      const blocks = json.content ?? [];
+      // Server-managed tools (web_search, web_fetch) emit non-text content
+      // blocks (server_tool_use, web_search_tool_result, etc.) inline. We
+      // ignore those and just return the model's final text + any
+      // client-side tool_use blocks the caller asked for.
+      const text = blocks
+        .filter((b) => b.type === "text")
+        .map((b) => b.text ?? "")
+        .join("")
+        .trim();
+      const toolUses: ToolUseBlock[] = blocks
+        .filter((b) => b.type === "tool_use" && b.id && b.name)
+        .map((b) => ({
+          id: b.id as string,
+          name: b.name as string,
+          input: b.input,
+        }));
+      if (!text && toolUses.length === 0) {
+        return { ok: false, error: "Empty response from Anthropic" };
+      }
+      return {
+        ok: true,
+        text,
+        model,
+        toolUses,
+        stopReason: json.stop_reason ?? null,
+        raw: json,
+      };
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+      // Network-level error: back off and retry too.
+      if (attempt < MAX_RETRIES) {
+        await sleep(retryDelayMs(new Headers(), attempt));
+        continue;
+      }
+      return { ok: false, error: lastError };
+    }
+  }
+  return { ok: false, error: lastError };
 }
 
 export type PingResult = {

@@ -58,19 +58,27 @@ export type PostPromptBrand = {
 };
 
 // Character budgets for the brand-profile fields injected into the prompt.
-// These MUST match the maxLength caps on the brand-profile form
-// (src/app/app/brand/page.tsx) so whatever a user can type is sent in full —
-// a smaller budget here would silently drop the tail of their input. The clip
-// then only ever fires as a safety net for over-long legacy/imported values.
+// Deliberately smaller than the form's maxLength caps: a fully maxed profile
+// is ~36k chars (~9k tokens) which, stacked with SERP research across a
+// minute, contributes to rate-limit (429) errors on lower API tiers. These
+// budgets keep more than enough signal to steer generation while halving the
+// footprint; clipForPrompt cuts at a paragraph boundary so nothing ends
+// mid-sentence. Raise them if you move to a higher API tier.
 const BRAND_BUDGETS = {
   audience: 600,
-  voice: 8000,
-  humour: 8000,
-  perspective: 4000,
-  stats: 6000,
-  stories: 8000,
-  avoid: 2000,
+  voice: 4000,
+  humour: 3000,
+  perspective: 2000,
+  stats: 3000,
+  stories: 3000,
+  avoid: 1500,
 } as const;
+
+// Budgets for free-text SERP fields, which are otherwise unbounded.
+const SERP_SUMMARY_BUDGET = 1500;
+const SERP_RATIONALE_BUDGET = 800;
+// Cap the internal-link candidate list — a large blog can have hundreds.
+const MAX_EXISTING_POSTS = 25;
 
 function clipForPrompt(body: string | null, maxChars: number): string | null {
   if (!body) return null;
@@ -230,11 +238,16 @@ export function composePostUserPrompt(opts: {
           : "unspecified")
       }`,
     );
-    if (serp.format_rationale) {
-      lines.push(`Format rationale: ${serp.format_rationale}`);
+    const rationale = clipForPrompt(
+      serp.format_rationale ?? null,
+      SERP_RATIONALE_BUDGET,
+    );
+    if (rationale) {
+      lines.push(`Format rationale: ${rationale}`);
     }
-    if (serp.summary) {
-      lines.push(`SERP summary: ${serp.summary}`);
+    const serpSummary = clipForPrompt(serp.summary ?? null, SERP_SUMMARY_BUDGET);
+    if (serpSummary) {
+      lines.push(`SERP summary: ${serpSummary}`);
     }
     lines.push("");
     lines.push("Common topics (must cover):");
@@ -272,7 +285,7 @@ export function composePostUserPrompt(opts: {
   if (existingPosts.length === 0) {
     lines.push("(none — skip cross-linking for this post)");
   } else {
-    for (const p of existingPosts) {
+    for (const p of existingPosts.slice(0, MAX_EXISTING_POSTS)) {
       const tagSuffix = p.tags.length > 0 ? ` — ${p.tags.join(", ")}` : "";
       lines.push(`- [${p.title}](/blog/${p.slug})${tagSuffix}`);
     }
