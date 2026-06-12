@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { loadBrandProfile } from "@/lib/brand-profile";
+import {
+  loadBrandProfile,
+  assessBrand,
+  type FieldAssessment,
+} from "@/lib/brand-profile";
 import { loadBrandExample } from "@/lib/brand-example";
 import { saveBrandProfile } from "@/lib/actions/brand-profile";
 import { Button, Field, Input } from "../../_components/ui";
@@ -8,6 +12,48 @@ import { BrandExampleLoader } from "../../_components/brand-example-loader";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Brand profile" };
+
+/** Compact status chip shown beside a scored field's label — a coloured dot
+ *  plus a small caps label, tuned to sit neatly next to the section heading. */
+function ScoreBadge({ a }: { a?: FieldAssessment }) {
+  const meta = !a
+    ? { label: "Optional", dot: "var(--ink-4)", fg: "var(--ink-3)", bg: "var(--surface-sunken)" }
+    : a.status === "good"
+      ? { label: "Looks good", dot: "var(--ok-500)", fg: "var(--ok-700)", bg: "var(--ok-100)" }
+      : a.status === "brief"
+        ? { label: "Add more", dot: "var(--warn-500)", fg: "var(--warn-700)", bg: "var(--warn-100)" }
+        : { label: "Missing", dot: "var(--danger-500)", fg: "var(--danger-700)", bg: "var(--danger-100)" };
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "2px 9px",
+        borderRadius: 999,
+        background: meta.bg,
+        color: meta.fg,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.07em",
+        textTransform: "uppercase",
+        lineHeight: 1.6,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: meta.dot,
+          flexShrink: 0,
+        }}
+      />
+      {meta.label}
+    </span>
+  );
+}
 
 export default async function BrandProfilePage({
   searchParams,
@@ -20,6 +66,8 @@ export default async function BrandProfilePage({
     loadBrandProfile(me.id),
     loadBrandExample(),
   ]);
+  const brand = assessBrand(profile);
+  const byKey = new Map(brand.fields.map((f) => [f.key, f] as const));
 
   return (
     <div className="page page--pad">
@@ -39,7 +87,7 @@ export default async function BrandProfilePage({
               letterSpacing: "-0.02em",
             }}
           >
-            How blogger writes for you
+            How BlogSeeder writes for you
           </h1>
           <p style={{ color: "var(--ink-3)", maxWidth: "60ch" }}>
             This shapes every post the AI generates — its voice, audience, and
@@ -53,6 +101,83 @@ export default async function BrandProfilePage({
             Brand profile saved.
           </p>
         )}
+
+        <div className="form-card" style={{ marginBottom: "var(--s-4)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: "var(--s-3)",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-3)",
+                }}
+              >
+                Profile score
+              </span>
+              <strong
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 28,
+                  color: "var(--ink-1)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {brand.percent}%
+              </strong>
+            </div>
+            <p
+              style={{
+                margin: 0,
+                color: "var(--ink-3)",
+                fontSize: "var(--t-body-s)",
+                maxWidth: "48ch",
+              }}
+            >
+              {brand.verdict}
+            </p>
+          </div>
+          <div
+            style={{
+              marginTop: "var(--s-3)",
+              height: 8,
+              borderRadius: 999,
+              background: "var(--surface-sunken)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${brand.percent}%`,
+                height: "100%",
+                background: "var(--volt-500)",
+                borderRadius: 999,
+              }}
+            />
+          </div>
+          <p
+            style={{
+              margin: "var(--s-3) 0 0",
+              fontSize: 12.5,
+              color: "var(--ink-3)",
+              lineHeight: 1.45,
+            }}
+          >
+            Each scored section is tagged below — fill the{" "}
+            <strong>Missing</strong> and <strong>Add more</strong> ones to reach
+            100%. “Optional” sections enrich posts but don&rsquo;t change the
+            score.
+          </p>
+        </div>
 
         {example && <BrandExampleLoader example={example} />}
 
@@ -76,7 +201,11 @@ export default async function BrandProfilePage({
                 placeholder="e.g. Trailhead Coffee Co."
               />
             </Field>
-            <Field label="Website URL" htmlFor="site_url" help="Optional.">
+            <Field
+              label="Website URL"
+              htmlFor="site_url"
+              help="Optional."
+            >
               <Input
                 id="site_url"
                 name="site_url"
@@ -108,6 +237,7 @@ export default async function BrandProfilePage({
             label="Voice & tone"
             htmlFor="voice"
             help="How posts should sound — who's writing, sentence rhythm, words to use and avoid, formatting habits, AI tells to dodge. Be comprehensive; examples help a lot. (Room for a full guide.)"
+            labelAccessory={<ScoreBadge a={byKey.get("voice")} />}
           >
             <textarea
               id="voice"
@@ -124,6 +254,7 @@ export default async function BrandProfilePage({
             label="Humour & wit"
             htmlFor="humour"
             help="How the writing makes the reader smile — the kind of humour, how dry, where it lands, and the jokes/clichés to avoid. Kept separate from voice so it gets real weight in every post. Leave blank for straight, no-jokes prose."
+            labelAccessory={<ScoreBadge a={byKey.get("humour")} />}
           >
             <textarea
               id="humour"
@@ -140,6 +271,7 @@ export default async function BrandProfilePage({
             label="Point of view / opinions"
             htmlFor="perspective"
             help="Editorial stances the writer should hold and weave in naturally."
+            labelAccessory={<ScoreBadge a={byKey.get("perspective")} />}
           >
             <textarea
               id="perspective"
@@ -156,6 +288,7 @@ export default async function BrandProfilePage({
             label="Key facts & stats"
             htmlFor="stats"
             help="Numbers, prices, and facts the writer should cite verbatim — never rounded or invented. The writer only uses figures you provide here. Leave blank if posts don't need hard numbers."
+            labelAccessory={<ScoreBadge a={byKey.get("stats")} />}
           >
             <textarea
               id="stats"
@@ -172,6 +305,7 @@ export default async function BrandProfilePage({
             label="Stories & anecdotes"
             htmlFor="stories"
             help="Real anecdotes and examples the writer can adapt into posts where they fit. Gives writing lived-in specifics instead of generic filler. Leave blank to skip."
+            labelAccessory={<ScoreBadge a={byKey.get("stories")} />}
           >
             <textarea
               id="stories"
@@ -188,6 +322,7 @@ export default async function BrandProfilePage({
             label="Things to avoid"
             htmlFor="avoid"
             help="Words, claims, topics, or styles the writer should steer clear of."
+            labelAccessory={<ScoreBadge a={byKey.get("avoid")} />}
           >
             <textarea
               id="avoid"

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
+  CSSProperties,
   InputHTMLAttributes,
   ReactNode,
   TextareaHTMLAttributes,
@@ -143,6 +144,7 @@ type BadgeVariant =
   | "volt-soft"
   | "ok"
   | "warn"
+  | "danger"
   | "info"
   | "ink";
 
@@ -194,12 +196,14 @@ export function Textarea({
 export function FieldLabel({
   children,
   htmlFor,
+  style,
 }: {
   children: ReactNode;
   htmlFor?: string;
+  style?: CSSProperties;
 }) {
   return (
-    <label htmlFor={htmlFor} className="field-label">
+    <label htmlFor={htmlFor} className="field-label" style={style}>
       {children}
     </label>
   );
@@ -209,16 +213,35 @@ export function Field({
   label,
   htmlFor,
   help,
+  labelAccessory,
   children,
 }: {
   label: string;
   htmlFor?: string;
   help?: ReactNode;
+  /** Optional element shown on the right of the label row (e.g. a status badge). */
+  labelAccessory?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="form-field">
-      <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
+      {labelAccessory ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          <FieldLabel htmlFor={htmlFor} style={{ marginBottom: 0 }}>
+            {label}
+          </FieldLabel>
+          {labelAccessory}
+        </div>
+      ) : (
+        <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
+      )}
       {children}
       {help && <span className="field-help">{help}</span>}
     </div>

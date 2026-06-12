@@ -574,6 +574,7 @@ textarea.input {
 .badge.--volt-soft { background: var(--volt-100); color: var(--volt-800); border-color: transparent; }
 .badge.--ok { background: var(--ok-100); color: oklch(38% 0.12 150); border-color: transparent; }
 .badge.--warn { background: var(--warn-100); color: oklch(40% 0.1 70); border-color: transparent; }
+.badge.--danger { background: var(--danger-100); color: var(--danger-700); border-color: transparent; }
 .badge.--info { background: var(--info-100); color: oklch(38% 0.12 240); border-color: transparent; }
 .badge.--ink { background: var(--ink-1); color: white; border-color: transparent; }
 .badge.--lg { padding: 6px 14px; font-size: var(--t-body-s); }

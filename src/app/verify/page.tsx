@@ -31,10 +31,10 @@ export default async function VerifyResultPage({
                 style={{ marginTop: 8, marginBottom: "var(--s-5)" }}
               >
                 Thanks for confirming. You&rsquo;re ready to use everything
-                blogger has to offer.
+                BlogSeeder has to offer.
               </p>
-              <ButtonLink href="/listings" variant="primary" iconRight="arrow">
-                Browse listings
+              <ButtonLink href="/app" variant="primary" iconRight="arrow">
+                Go to dashboard
               </ButtonLink>
             </>
           ) : (

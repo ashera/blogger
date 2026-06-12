@@ -109,24 +109,127 @@ export function brandProfileIsConfigured(p: BrandProfile): boolean {
   return Boolean(p.brandName || p.audience || p.voice);
 }
 
-/**
- * How complete the profile is, 0–100 (rounded). Every field counts equally;
- * a field is "filled" when it holds non-whitespace text.
- */
+// ---------------------------------------------------------------------------
+// Brand-profile completeness — single source of truth, shared by the
+// dashboard's detailed breakdown and the home-page hero meter so the two can
+// never disagree. Weighted by each field's impact on generation; a field that
+// is present but shorter than its recommended length earns half credit.
+// ---------------------------------------------------------------------------
+
+export type FieldStatus = "good" | "brief" | "missing";
+
+export type FieldAssessment = {
+  key: keyof BrandProfile;
+  label: string;
+  status: FieldStatus;
+  weight: number;
+  impact: string; // shown when not "good"
+};
+
+const BRAND_FIELDS: Array<{
+  key: keyof BrandProfile;
+  label: string;
+  recommend: number;
+  weight: number;
+  missingImpact: string;
+  briefImpact: string;
+}> = [
+  {
+    key: "voice",
+    label: "Voice & tone",
+    recommend: 160,
+    weight: 3,
+    missingImpact:
+      "Posts fall back to generic AI prose — this is the single biggest driver of how your blog reads.",
+    briefImpact:
+      "Too thin to imitate. Add detail and a sample sentence or two so posts sound distinctly like you.",
+  },
+  {
+    key: "humour",
+    label: "Humour & wit",
+    recommend: 120,
+    weight: 2,
+    missingImpact:
+      "Posts won't carry a distinct sense of humour — fine if you want straight prose, but wit is a big part of a memorable voice.",
+    briefImpact:
+      "Add detail on the kind of humour and where it lands so it reads deliberate, not random.",
+  },
+  {
+    key: "audience",
+    label: "Audience",
+    recommend: 50,
+    weight: 3,
+    missingImpact:
+      "The writer pitches at a generic reader instead of your actual audience — depth and framing will be off.",
+    briefImpact:
+      "Spell out who they are, their level and goals so posts pitch at the right depth.",
+  },
+  {
+    key: "perspective",
+    label: "Point of view",
+    recommend: 50,
+    weight: 2,
+    missingImpact:
+      "Posts stay neutral and hedged, with no editorial stance of their own.",
+    briefImpact:
+      "Add a few opinions the writer should hold so posts take a real position.",
+  },
+  {
+    key: "avoid",
+    label: "Things to avoid",
+    recommend: 25,
+    weight: 2,
+    missingImpact:
+      "No guardrails — the writer may use hype words, off-brand claims, or styles you'd never publish.",
+    briefImpact: "List more words, claims, or styles to steer clear of.",
+  },
+  {
+    key: "brandName",
+    label: "Brand / blog name",
+    recommend: 2,
+    weight: 1,
+    missingImpact: "The prompt has no brand name to anchor the writing to.",
+    briefImpact: "",
+  },
+];
+
+export function assessBrand(p: BrandProfile): {
+  fields: FieldAssessment[];
+  percent: number;
+  verdict: string;
+} {
+  let credit = 0;
+  let total = 0;
+  const fields: FieldAssessment[] = BRAND_FIELDS.map((f) => {
+    total += f.weight;
+    const raw = (p[f.key] ?? "").trim();
+    let status: FieldStatus;
+    if (raw.length === 0) status = "missing";
+    else if (raw.length < f.recommend) status = "brief";
+    else status = "good";
+    credit +=
+      status === "good" ? f.weight : status === "brief" ? f.weight / 2 : 0;
+    const impact =
+      status === "missing"
+        ? f.missingImpact
+        : status === "brief"
+          ? f.briefImpact
+          : "";
+    return { key: f.key, label: f.label, status, weight: f.weight, impact };
+  });
+  const percent = Math.round((credit / total) * 100);
+  const verdict =
+    percent >= 100
+      ? "Fully configured — generated posts will lean hard on your brand."
+      : percent >= 70
+        ? "Solid. Closing the gaps below will sharpen the output further."
+        : percent >= 40
+          ? "Partly set up. The gaps below noticeably affect how posts read."
+          : "Barely configured — posts will read generic until you fill the high-impact fields below.";
+  return { fields, percent, verdict };
+}
+
+/** Convenience: just the completeness percent (0–100). */
 export function brandProfileCompleteness(p: BrandProfile): number {
-  const fields = [
-    p.brandName,
-    p.siteUrl,
-    p.audience,
-    p.voice,
-    p.humour,
-    p.perspective,
-    p.stats,
-    p.stories,
-    p.avoid,
-  ];
-  const filled = fields.filter(
-    (v) => typeof v === "string" && v.trim().length > 0,
-  ).length;
-  return Math.round((filled / fields.length) * 100);
+  return assessBrand(p).percent;
 }
