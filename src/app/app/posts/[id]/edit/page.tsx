@@ -12,6 +12,7 @@ import {
 } from "@/lib/actions/blog";
 import { computeContentStats, daysSince } from "@/lib/blog-stats";
 import { Button, Field, Input, Textarea } from "../../../../_components/ui";
+import { CopyToSiteButton } from "../../../../_components/copy-to-site";
 
 export const dynamic = "force-dynamic";
 
@@ -254,6 +255,7 @@ export default async function EditBlogPostPage({
             >
               Preview ↗
             </Link>
+            <CopyToSiteButton postId={post.id} />
             <form action={toggleBlogPublished}>
               <input type="hidden" name="postId" value={post.id} />
               <Button type="submit" variant={isPublished ? "ghost" : "primary"}>

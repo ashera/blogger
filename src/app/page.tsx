@@ -3,6 +3,7 @@ import Link from "next/link";
 import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
+import { loadBrandProfile, brandProfileCompleteness } from "@/lib/brand-profile";
 import { ButtonLink } from "./_components/ui";
 
 // 60s ISR. The page reads the current user cookie so it stays dynamic in
@@ -72,27 +73,52 @@ async function getHeroPost(userId: string | null): Promise<LatestBlogPost | null
   }
 }
 
+// Mirrors the seed wizard: keywords → cluster → SERP → images → generate.
+// See STEPS in src/app/_components/wizard-steps.tsx.
 const STEPS: Array<{ n: string; title: string; desc: string }> = [
   {
     n: "1",
-    title: "Pick a subject",
-    desc: "Drop in a keyword or topic. We expand it into a tight cluster of related search queries.",
+    title: "Keywords",
+    desc: "Drop in a topic and a few starter phrases to seed the post.",
   },
   {
     n: "2",
-    title: "Research the SERP",
-    desc: "Live web search reads the top-ranking pages so your post covers what actually wins.",
+    title: "Cluster",
+    desc: "We expand them into a tight cluster of related search queries — review and refine the set.",
   },
   {
     n: "3",
-    title: "Generate & publish",
-    desc: "AI writes a complete, image-rich draft in your brand voice. Edit, export, or publish in a click.",
+    title: "SERP analysis",
+    desc: "Live web search reads the top-ranking pages so your draft covers what actually ranks.",
+  },
+  {
+    n: "4",
+    title: "Images",
+    desc: "Add matching photography from a curated image pool for the hero and body.",
+  },
+  {
+    n: "5",
+    title: "Generate",
+    desc: "AI writes a complete, image-rich draft in your brand voice — edit, publish, or copy to your own site.",
   },
 ];
 
+/** Encouragement copy for the brand-profile completeness meter. */
+function brandMeterMessage(pct: number): string {
+  if (pct === 0) return "Set it up to shape every post";
+  if (pct < 34) return "Add more to sharpen your voice";
+  if (pct < 67) return "Coming along — keep going";
+  return "Almost there — finish it off";
+}
+
 export default async function Home() {
   const user = await getCurrentUser();
-  const latestPost = await getHeroPost(user?.id ?? null);
+  const [latestPost, brandPct] = await Promise.all([
+    getHeroPost(user?.id ?? null),
+    user
+      ? loadBrandProfile(user.id).then(brandProfileCompleteness)
+      : Promise.resolve<number | null>(null),
+  ]);
 
   return (
     <div className="page">
@@ -129,6 +155,19 @@ export default async function Home() {
             )}
           </div>
         </div>
+
+        {user && brandPct !== null && brandPct < 100 && (
+          <Link href="/app/brand" className="hero-brand-meter">
+            <div className="row">
+              <span className="label">Brand profile</span>
+              <span className="pct">{brandPct}%</span>
+            </div>
+            <span className="msg">{brandMeterMessage(brandPct)} →</span>
+            <div className="bar" aria-hidden>
+              <span style={{ width: `${brandPct}%` }} />
+            </div>
+          </Link>
+        )}
       </section>
 
       {latestPost && (

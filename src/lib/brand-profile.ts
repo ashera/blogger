@@ -108,3 +108,25 @@ export async function updateBrandProfile(
 export function brandProfileIsConfigured(p: BrandProfile): boolean {
   return Boolean(p.brandName || p.audience || p.voice);
 }
+
+/**
+ * How complete the profile is, 0–100 (rounded). Every field counts equally;
+ * a field is "filled" when it holds non-whitespace text.
+ */
+export function brandProfileCompleteness(p: BrandProfile): number {
+  const fields = [
+    p.brandName,
+    p.siteUrl,
+    p.audience,
+    p.voice,
+    p.humour,
+    p.perspective,
+    p.stats,
+    p.stories,
+    p.avoid,
+  ];
+  const filled = fields.filter(
+    (v) => typeof v === "string" && v.trim().length > 0,
+  ).length;
+  return Math.round((filled / fields.length) * 100);
+}

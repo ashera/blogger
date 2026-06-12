@@ -673,6 +673,67 @@ textarea.input {
   color: rgba(255, 255, 255, 0.86);
   font-size: var(--t-body-l);
 }
+/* Brand-profile completeness nudge, anchored bottom-right of the hero. */
+.hero-brand-meter {
+  position: absolute;
+  right: clamp(16px, 3vw, 28px);
+  bottom: clamp(16px, 3vw, 24px);
+  z-index: 1;
+  width: 230px;
+  max-width: 56%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(8, 28, 22, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  text-decoration: none;
+  transition: background var(--dur), transform var(--dur);
+}
+.hero-brand-meter:hover {
+  background: rgba(8, 28, 22, 0.8);
+  transform: translateY(-1px);
+}
+.hero-brand-meter .row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hero-brand-meter .label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+.hero-brand-meter .pct {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1;
+}
+.hero-brand-meter .msg {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  opacity: 0.92;
+}
+.hero-brand-meter .bar {
+  margin-top: 9px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+.hero-brand-meter .bar > span {
+  display: block;
+  height: 100%;
+  background: var(--volt-400);
+  border-radius: 999px;
+}
+
 @media (max-width: 640px) {
   .hero-photo {
     min-height: 300px;
@@ -684,6 +745,10 @@ textarea.input {
       rgba(8, 28, 22, 0.6) 45%,
       rgba(8, 28, 22, 0.25) 100%
     );
+  }
+  /* Hidden on small screens to avoid overlapping the hero CTAs. */
+  .hero-brand-meter {
+    display: none;
   }
 }
 

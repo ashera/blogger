@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { computeContentStats } from "@/lib/blog-stats";
 import { ButtonLink } from "../../_components/ui";
+import { CopyToSiteButton } from "../../_components/copy-to-site";
 
 export const dynamic = "force-dynamic";
 
@@ -206,17 +207,31 @@ export default async function MyPostsPage() {
                   isPublished={p.published_at != null}
                 />
               </div>
-              <Link
-                href={`/app/posts/${p.id}/edit`}
+              <div
                 style={{
-                  fontWeight: 600,
-                  color: "var(--ink-1)",
-                  fontSize: "var(--t-body-s)",
-                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--s-3)",
+                  flexShrink: 0,
                 }}
               >
-                Edit →
-              </Link>
+                <CopyToSiteButton
+                  postId={p.id}
+                  triggerLabel="Copy"
+                  triggerClassName="btn --ghost --sm"
+                />
+                <Link
+                  href={`/app/posts/${p.id}/edit`}
+                  style={{
+                    fontWeight: 600,
+                    color: "var(--ink-1)",
+                    fontSize: "var(--t-body-s)",
+                    textDecoration: "none",
+                  }}
+                >
+                  Edit →
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
