@@ -1,0 +1,46 @@
+{
+  "name": "blogger",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "playwright test",
+    "test:smoke": "playwright test --project=smoke",
+    "test:local": "playwright test --project=local",
+    "db:setup": "node scripts/db-setup.mjs",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.17",
+    "bcryptjs": "^3.0.3",
+    "isomorphic-dompurify": "^3.11.0",
+    "leaflet": "^1.9.4",
+    "marked": "^18.0.3",
+    "mermaid": "^11.14.0",
+    "next": "16.2.4",
+    "pg": "^8.20.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/adm-zip": "^0.5.8",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,182 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { query } from "@/lib/db";
+import {
+  createSession,
+  destroySession,
+  getCurrentUser,
+  hashPassword,
+  verifyPassword,
+} from "@/lib/auth";
+import { dispatchVerificationEmail } from "@/lib/email-verify";
+import { passwordMeetsRules } from "@/lib/password-rules";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function parseCredentials(formData: FormData): {
+  email: string;
+  password: string;
+  error?: string;
+} {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(formData.get("password") ?? "");
+
+  if (!email || !EMAIL_RE.test(email)) {
+    return { email, password, error: "invalid-email" };
+  }
+  if (password.length < 8) {
+    return { email, password, error: "weak-password" };
+  }
+  if (password.length > 72) {
+    return { email, password, error: "long-password" };
+  }
+  return { email, password };
+}
+
+/** A post-auth redirect target from the form, restricted to a safe
+ *  relative path (no protocol-relative // or absolute URLs) so it can't
+ *  be used as an open redirect. Defaults to the home page. */
+function safeNext(formData: FormData): string {
+  const n = String(formData.get("next") ?? "");
+  return n.startsWith("/") && !n.startsWith("//") ? n : "/";
+}
+
+export async function register(formData: FormData): Promise<void> {
+  const { email, password, error } = parseCredentials(formData);
+  if (error) {
+    redirect(`/register?error=${error}`);
+  }
+  // Stricter complexity than login's parseCredentials (length-only).
+  // Login stays permissive so users registered before this rule
+  // existed can still sign in; only *setting* a password is gated.
+  if (!passwordMeetsRules(password)) {
+    redirect(`/register?error=weak-password`);
+  }
+
+  const password_hash = await hashPassword(password);
+
+  let userId: string;
+  try {
+    const result = await query<{ id: string }>(
+      `INSERT INTO users (email, password_hash)
+         VALUES ($1, $2)
+         RETURNING id::text`,
+      [email, password_hash],
+    );
+    userId = result.rows[0]!.id;
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "23505") {
+      redirect("/register?error=email-taken");
+    }
+    throw err;
+  }
+
+  await createSession(userId);
+  // Fire-and-forget — don't block signup if Resend is down or unset.
+  await dispatchVerificationEmail(userId, email);
+  redirect(safeNext(formData));
+}
+
+const TITLES = new Set(["Mr", "Mrs", "Ms", "Mx", "Dr", "Prof"]);
+
+function clean(
+  formData: FormData,
+  key: string,
+  max: number,
+): string | null {
+  const v = String(formData.get(key) ?? "")
+    .trim()
+    .slice(0, max);
+  return v.length > 0 ? v : null;
+}
+
+/**
+ * Parse a centimetre input from a form field. Allows blanks
+ * (returns null) and clamps to a sane range so a typo doesn't
+ * poison the fit calculator with absurd values.
+ */
+function cleanCm(formData: FormData, key: string): number | null {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (raw === "") return null;
+  if (!/^\d{1,3}(\.\d{1,2})?$/.test(raw)) return null;
+  const n = Number.parseFloat(raw);
+  if (!Number.isFinite(n)) return null;
+  // Roughly the old 20"–70" range converted: 50cm–180cm.
+  if (n < 50 || n > 180) return null;
+  // Round to one decimal — matches NUMERIC(4,1) on the column.
+  return Math.round(n * 10) / 10;
+}
+
+export async function updateProfile(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const titleRaw = clean(formData, "title", 16);
+  const title = titleRaw && TITLES.has(titleRaw) ? titleRaw : null;
+  const firstName = clean(formData, "first_name", 64);
+  const surname = clean(formData, "surname", 64);
+  const town = clean(formData, "town", 64);
+  const postcode = clean(formData, "postcode", 16);
+  const bust = cleanCm(formData, "bust_cm");
+  const waist = cleanCm(formData, "waist_cm");
+  const hips = cleanCm(formData, "hips_cm");
+
+  await query(
+    `UPDATE users
+        SET title = $1,
+            first_name = $2,
+            surname = $3,
+            town = $4,
+            postcode = $5,
+            bust_cm = $7,
+            waist_cm = $8,
+            hips_cm = $9
+      WHERE id = $6::bigint`,
+    [title, firstName, surname, town, postcode, user.id, bust, waist, hips],
+  );
+
+  revalidatePath("/profile");
+  revalidatePath("/", "layout");
+  redirect("/profile?saved=1");
+}
+
+export async function login(formData: FormData): Promise<void> {
+  const { email, password, error } = parseCredentials(formData);
+  if (error) {
+    redirect(`/login?error=invalid-credentials`);
+  }
+
+  const result = await query<{
+    id: string;
+    password_hash: string;
+    suspended_at: string | null;
+  }>(
+    "SELECT id::text, password_hash, suspended_at::text FROM users WHERE email = $1 LIMIT 1",
+    [email],
+  );
+  const user = result.rows[0];
+  if (!user) {
+    redirect("/login?error=invalid-credentials");
+  }
+
+  const ok = await verifyPassword(password, user.password_hash);
+  if (!ok) {
+    redirect("/login?error=invalid-credentials");
+  }
+  if (user.suspended_at) {
+    redirect("/login?error=suspended");
+  }
+
+  await createSession(user.id);
+  redirect(safeNext(formData));
+}
+
+export async function logout(): Promise<void> {
+  await destroySession();
+  redirect("/");
+}
