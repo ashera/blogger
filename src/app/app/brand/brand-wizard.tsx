@@ -266,6 +266,7 @@ export function BrandWizard({
           )}
           {current.kind === "section" && (
             <SectionStep
+              key={current.key}
               sectionKey={current.key}
               value={values[current.key]}
               onChange={(v) => setField(current.key, v)}
