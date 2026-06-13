@@ -5,14 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BrandProfile, FieldStatus } from "@/lib/brand-score";
 import { assessBrand } from "@/lib/brand-score";
-import {
-  BRAND_SECTIONS,
-  type BrandSectionKey,
-} from "@/lib/brand-sections";
+import { BRAND_SECTIONS, type BrandSectionKey } from "@/lib/brand-sections";
 import {
   saveBrandDraft,
-  writeBrandSection,
-  type InterviewAnswer,
+  generateBrandSections,
 } from "@/lib/actions/brand-wizard";
 
 type Values = Record<keyof BrandProfile, string>;
@@ -39,7 +35,10 @@ function stepLabel(s: Step): string {
   return BRAND_SECTIONS[s.key].label;
 }
 
-const CHIP: Record<FieldStatus | "optional", { label: string; dot: string; fg: string; bg: string }> = {
+const CHIP: Record<
+  FieldStatus | "optional",
+  { label: string; dot: string; fg: string; bg: string }
+> = {
   good: { label: "Looks good", dot: "var(--ok-500)", fg: "var(--ok-700)", bg: "var(--ok-100)" },
   brief: { label: "Add more", dot: "var(--warn-500)", fg: "var(--warn-700)", bg: "var(--warn-100)" },
   missing: { label: "Missing", dot: "var(--danger-500)", fg: "var(--danger-700)", bg: "var(--danger-100)" },
@@ -74,15 +73,7 @@ function StatusChip({ status }: { status: FieldStatus | "optional" }) {
   );
 }
 
-type BrandSamples = Record<BrandSectionKey, string[]>;
-
-export function BrandWizard({
-  initial,
-  samples,
-}: {
-  initial: BrandProfile;
-  samples: BrandSamples;
-}) {
+export function BrandWizard({ initial }: { initial: BrandProfile }) {
   const router = useRouter();
   const [values, setValues] = useState<Values>(() => ({
     brandName: initial.brandName ?? "",
@@ -98,21 +89,20 @@ export function BrandWizard({
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   const score = useMemo(() => assessBrand(values), [values]);
-  const scoredKeys = useMemo(
-    () => new Set(score.fields.map((f) => f.key)),
-    [score],
-  );
+  const scoredKeys = useMemo(() => new Set(score.fields.map((f) => f.key)), [score]);
 
   function setField(key: keyof BrandProfile, v: string) {
     setValues((prev) => ({ ...prev, [key]: v }));
   }
 
-  async function persist(): Promise<boolean> {
+  async function persist(override?: Values): Promise<boolean> {
     setSaving(true);
     setSaveError(null);
-    const res = await saveBrandDraft(values);
+    const res = await saveBrandDraft(override ?? values);
     setSaving(false);
     if (!res.ok) {
       setSaveError(res.error);
@@ -121,19 +111,48 @@ export function BrandWizard({
     return true;
   }
 
-  async function goTo(target: number) {
-    await persist(); // best-effort; state is preserved regardless
-    setStep(Math.max(0, Math.min(STEPS.length - 1, target)));
+  function scrollTop() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  async function goTo(target: number, override?: Values) {
+    await persist(override);
+    setStep(Math.max(0, Math.min(STEPS.length - 1, target)));
+    scrollTop();
+  }
+
   async function finish() {
-    const ok = await persist();
-    if (ok) router.push("/app");
+    if (await persist()) router.push("/app");
+  }
+
+  async function generate() {
+    setGenError(null);
+    if (!values.brandName.trim() || !values.audience.trim()) {
+      setGenError("Add your brand name and audience first so the AI can tailor each section.");
+      return;
+    }
+    setGenerating(true);
+    const res = await generateBrandSections({
+      brandName: values.brandName,
+      siteUrl: values.siteUrl,
+      audience: values.audience,
+    });
+    if (!res.ok) {
+      setGenError(res.error);
+      setGenerating(false);
+      return;
+    }
+    const merged: Values = { ...values, ...res.sections };
+    setValues(merged);
+    await persist(merged);
+    setGenerating(false);
+    setStep(1); // jump to the first generated section (Voice)
+    scrollTop();
   }
 
   const current = STEPS[step]!;
   const isLast = step === STEPS.length - 1;
+  const busy = saving || generating;
 
   return (
     <div className="page page--pad">
@@ -156,8 +175,8 @@ export function BrandWizard({
             Set up how BlogSeeder writes for you
           </h1>
           <p style={{ color: "var(--ink-3)", maxWidth: "60ch", margin: 0 }}>
-            One part at a time. Write each in your own words, or let the AI
-            interview you and draft it — you can always edit after.
+            Tell us your brand, site, and audience — the AI drafts every section
+            for you, and you edit each one to make it yours.
           </p>
         </header>
 
@@ -207,14 +226,7 @@ export function BrandWizard({
               }}
             />
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 6,
-              marginTop: "var(--s-3)",
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", gap: 6, marginTop: "var(--s-3)", flexWrap: "wrap" }}>
             {STEPS.map((s, i) => {
               const active = i === step;
               return (
@@ -222,6 +234,7 @@ export function BrandWizard({
                   key={i}
                   type="button"
                   onClick={() => goTo(i)}
+                  disabled={busy}
                   title={stepLabel(s)}
                   aria-current={active ? "step" : undefined}
                   style={{
@@ -238,14 +251,10 @@ export function BrandWizard({
                       : i < step
                         ? "var(--volt-50)"
                         : "var(--surface)",
-                    color: active
-                      ? "#fff"
-                      : i < step
-                        ? "var(--volt-700)"
-                        : "var(--ink-3)",
+                    color: active ? "#fff" : i < step ? "var(--volt-700)" : "var(--ink-3)",
                     fontSize: 12,
                     fontWeight: 700,
-                    cursor: "pointer",
+                    cursor: busy ? "default" : "pointer",
                   }}
                 >
                   {i + 1}
@@ -261,7 +270,12 @@ export function BrandWizard({
             <BasicsStep
               values={values}
               setField={setField}
-              audienceSamples={samples.audience}
+              onGenerate={generate}
+              generating={generating}
+              genError={genError}
+              hasGenerated={Boolean(
+                values.voice || values.humour || values.perspective,
+              )}
             />
           )}
           {current.kind === "section" && (
@@ -270,10 +284,7 @@ export function BrandWizard({
               sectionKey={current.key}
               value={values[current.key]}
               onChange={(v) => setField(current.key, v)}
-              brandName={values.brandName}
-              audience={values.audience}
               optional={!scoredKeys.has(current.key)}
-              samples={samples[current.key]}
             />
           )}
           {current.kind === "review" && (
@@ -285,7 +296,7 @@ export function BrandWizard({
                 const idx = STEPS.findIndex(
                   (s) =>
                     (s.kind === "section" && s.key === key) ||
-                    (s.kind === "basics" && (key === "audience" || key === "brandName")),
+                    (s.kind === "basics" && key === "audience"),
                 );
                 if (idx >= 0) goTo(idx);
               }}
@@ -306,7 +317,7 @@ export function BrandWizard({
           <button
             type="button"
             className="btn --ghost"
-            disabled={step === 0 || saving}
+            disabled={step === 0 || busy}
             onClick={() => goTo(step - 1)}
             style={{ visibility: step === 0 ? "hidden" : "visible" }}
           >
@@ -314,26 +325,22 @@ export function BrandWizard({
           </button>
 
           <span style={{ fontSize: 12, color: "var(--ink-3)", minHeight: 16 }}>
-            {saving ? "Saving…" : saveError ? "" : "Progress saves automatically"}
-            {saveError && (
-              <span style={{ color: "var(--danger-700)" }}>{saveError}</span>
-            )}
+            {saving
+              ? "Saving…"
+              : saveError
+                ? <span style={{ color: "var(--danger-700)" }}>{saveError}</span>
+                : "Progress saves automatically"}
           </span>
 
           {isLast ? (
-            <button
-              type="button"
-              className="btn --primary"
-              disabled={saving}
-              onClick={finish}
-            >
+            <button type="button" className="btn --primary" disabled={busy} onClick={finish}>
               {saving ? "Saving…" : "Finish"}
             </button>
           ) : (
             <button
               type="button"
               className="btn --primary"
-              disabled={saving}
+              disabled={busy}
               onClick={() => goTo(step + 1)}
             >
               Save &amp; continue →
@@ -348,12 +355,19 @@ export function BrandWizard({
 function BasicsStep({
   values,
   setField,
-  audienceSamples,
+  onGenerate,
+  generating,
+  genError,
+  hasGenerated,
 }: {
   values: Values;
   setField: (k: keyof BrandProfile, v: string) => void;
-  audienceSamples: string[];
+  onGenerate: () => void;
+  generating: boolean;
+  genError: string | null;
+  hasGenerated: boolean;
 }) {
+  const canGenerate = values.brandName.trim() && values.audience.trim();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
       <div>
@@ -361,7 +375,8 @@ function BasicsStep({
           The basics
         </h2>
         <p className="card-sub" style={{ margin: 0 }}>
-          Name your blog, and say who it&rsquo;s for.
+          Name your blog, add your site, and say who it&rsquo;s for. The AI uses
+          these to draft every other section.
         </p>
       </div>
       <div className="grid-2">
@@ -391,24 +406,82 @@ function BasicsStep({
         </label>
       </div>
 
-      <div>
-        <span className="field-label" style={{ display: "block" }}>
-          {BRAND_SECTIONS.audience.label}
-        </span>
-        <p
-          className="field-help"
-          style={{ display: "block", margin: "0 0 8px" }}
-        >
-          {BRAND_SECTIONS.audience.intro}
-        </p>
-        <SectionEditor
-          sectionKey="audience"
+      <label className="form-field">
+        <span className="field-label">{BRAND_SECTIONS.audience.label}</span>
+        <textarea
+          className="input"
+          rows={BRAND_SECTIONS.audience.rows}
+          maxLength={BRAND_SECTIONS.audience.maxLength}
           value={values.audience}
-          onChange={(v) => setField("audience", v)}
-          brandName={values.brandName}
-          audience={values.audience}
-          samples={audienceSamples}
+          onChange={(e) => setField("audience", e.target.value)}
+          placeholder={BRAND_SECTIONS.audience.placeholder}
         />
+        <span className="field-help">{BRAND_SECTIONS.audience.intro}</span>
+      </label>
+
+      {/* generate callout */}
+      <div
+        style={{
+          padding: "var(--s-4)",
+          background: "var(--volt-50)",
+          border: "1px solid var(--volt-300)",
+          borderRadius: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--s-3)",
+        }}
+      >
+        <div>
+          <strong style={{ color: "var(--ink-1)" }}>
+            ✨ Draft every section from these details
+          </strong>
+          <p
+            style={{
+              margin: "4px 0 0",
+              fontSize: 13,
+              color: "var(--ink-2)",
+              lineHeight: 1.5,
+            }}
+          >
+            The AI writes your voice, humour, point of view, facts, stories, and
+            guardrails — tailored to your brand and audience. You then edit each
+            one in the next steps.
+            {hasGenerated && (
+              <>
+                {" "}
+                <strong>This replaces the current section text.</strong>
+              </>
+            )}
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn --primary"
+            onClick={onGenerate}
+            disabled={generating || !canGenerate}
+          >
+            {generating
+              ? "Writing your profile…"
+              : hasGenerated
+                ? "Regenerate from these details"
+                : "Generate my brand profile"}
+          </button>
+          {generating ? (
+            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+              Drafting all six sections — this can take a minute or two.
+            </span>
+          ) : !canGenerate ? (
+            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+              Add a brand name and audience to enable this.
+            </span>
+          ) : null}
+        </div>
+        {genError && (
+          <p className="form-error" style={{ margin: 0 }}>
+            {genError}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -418,30 +491,17 @@ function SectionStep({
   sectionKey,
   value,
   onChange,
-  brandName,
-  audience,
   optional,
-  samples,
 }: {
   sectionKey: BrandSectionKey;
   value: string;
   onChange: (v: string) => void;
-  brandName: string;
-  audience: string;
   optional: boolean;
-  samples: string[];
 }) {
   const section = BRAND_SECTIONS[sectionKey];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <h2 className="card-heading" style={{ margin: 0 }}>
           {section.label}
         </h2>
@@ -450,192 +510,21 @@ function SectionStep({
       <p className="card-sub" style={{ margin: 0 }}>
         {section.intro}
       </p>
-      <SectionEditor
-        sectionKey={sectionKey}
-        value={value}
-        onChange={onChange}
-        brandName={brandName}
-        audience={audience}
-        samples={samples}
-      />
-    </div>
-  );
-}
-
-/** Textarea + the "help me write this" AI interview for one section. */
-function SectionEditor({
-  sectionKey,
-  value,
-  onChange,
-  brandName,
-  audience,
-  samples,
-}: {
-  sectionKey: BrandSectionKey;
-  value: string;
-  onChange: (v: string) => void;
-  brandName: string;
-  audience: string;
-  samples: string[];
-}) {
-  const section = BRAND_SECTIONS[sectionKey];
-  const [open, setOpen] = useState(false);
-  // Prefill each answer with the reference-derived sample (editable). `touched`
-  // tracks which the user has changed, so untouched samples render in grey to
-  // signal "example — rewrite for your brand".
-  const [answers, setAnswers] = useState<string[]>(() =>
-    section.questions.map((_, i) => samples[i] ?? ""),
-  );
-  const [touched, setTouched] = useState<boolean[]>(() =>
-    section.questions.map(() => false),
-  );
-  const [writing, setWriting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function write() {
-    setWriting(true);
-    setError(null);
-    const payload: InterviewAnswer[] = section.questions.map((q, i) => ({
-      q,
-      a: answers[i] ?? "",
-    }));
-    const res = await writeBrandSection({
-      section: sectionKey,
-      answers: payload,
-      brandName: brandName.trim() || null,
-      audience: audience.trim() || null,
-      current: value.trim() || null,
-    });
-    setWriting(false);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    onChange(res.text);
-    setOpen(false);
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-2)" }}>
       <textarea
         className="input"
         rows={section.rows}
         maxLength={section.maxLength}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={section.placeholder}
+        placeholder={
+          value
+            ? section.placeholder
+            : `Generate from the first step, or write your own. ${section.placeholder}`
+        }
       />
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          type="button"
-          className="btn --ghost --sm"
-          onClick={() => setOpen((o) => !o)}
-        >
-          {open ? "Close assistant" : "✨ Help me write this"}
-        </button>
-        <span style={{ fontSize: 11, color: "var(--ink-4)" }}>
-          {value.length}/{section.maxLength}
-        </span>
+      <div style={{ textAlign: "right", fontSize: 11, color: "var(--ink-4)" }}>
+        {value.length}/{section.maxLength}
       </div>
-
-      {open && (
-        <div
-          style={{
-            marginTop: 4,
-            padding: "var(--s-4)",
-            background: "var(--surface-sunken)",
-            border: "1px solid var(--hairline)",
-            borderRadius: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--s-3)",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: 13, color: "var(--ink-2)" }}>
-            Answer what you can — the AI drafts the section from your answers.
-            Greyed text is example content from a demo brand;{" "}
-            <strong>rewrite it for your brand</strong> (or clear it) so your
-            posts don&rsquo;t sound like someone else.
-          </p>
-          {section.questions.map((q, i) => (
-            <label key={i} style={{ display: "block" }}>
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "var(--ink-1)",
-                  marginBottom: 4,
-                }}
-              >
-                {q}
-              </span>
-              <textarea
-                className="input"
-                rows={2}
-                value={answers[i] ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setAnswers((prev) => {
-                    const n = [...prev];
-                    n[i] = v;
-                    return n;
-                  });
-                  if (!touched[i]) {
-                    setTouched((prev) => {
-                      const n = [...prev];
-                      n[i] = true;
-                      return n;
-                    });
-                  }
-                }}
-                style={
-                  // Untouched sample → grey, to signal "example, edit me".
-                  !touched[i] && (samples[i] ?? "").length > 0
-                    ? { color: "var(--ink-4)" }
-                    : undefined
-                }
-              />
-            </label>
-          ))}
-          {error && (
-            <p className="form-error" style={{ margin: 0 }}>
-              {error}
-            </p>
-          )}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button
-              type="button"
-              className="btn --primary --sm"
-              onClick={write}
-              disabled={writing}
-            >
-              {writing
-                ? "Writing…"
-                : value.trim()
-                  ? "Rewrite from answers"
-                  : "Write it for me"}
-            </button>
-            <button
-              type="button"
-              className="btn --ghost --sm"
-              onClick={() => setOpen(false)}
-              disabled={writing}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -651,7 +540,6 @@ function ReviewStep({
   values: Values;
   onJump: (key: keyof BrandProfile) => void;
 }) {
-  // Order the review the same way the wizard flows.
   const base: Array<{ key: keyof BrandProfile; label: string }> = [
     { key: "audience", label: "Audience" },
     { key: "voice", label: "Voice & tone" },
@@ -661,13 +549,11 @@ function ReviewStep({
     { key: "stories", label: "Stories & anecdotes" },
     { key: "avoid", label: "Things to avoid" },
   ];
-  const rows: Array<{ key: keyof BrandProfile; label: string; status: FieldStatus | "optional" }> = base.map((r) => {
-    const scored = score.fields.find((f) => f.key === r.key);
-    const status: FieldStatus | "optional" = scored
-      ? scored.status
-      : "optional";
-    return { ...r, status };
-  });
+  const rows: Array<{ key: keyof BrandProfile; label: string; status: FieldStatus | "optional" }> =
+    base.map((r) => {
+      const scored = score.fields.find((f) => f.key === r.key);
+      return { ...r, status: scored ? scored.status : "optional" };
+    });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
@@ -680,13 +566,7 @@ function ReviewStep({
         </p>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: 10,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
         <strong
           style={{
             fontFamily: "var(--font-display)",
@@ -700,56 +580,39 @@ function ReviewStep({
         <span style={{ color: "var(--ink-3)", fontSize: 13 }}>complete</span>
       </div>
 
-      <ul
-        style={{
-          listStyle: "none",
-          margin: 0,
-          padding: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-        }}
-      >
-        {rows.map((r) => {
-          const filled = (values[r.key] ?? "").trim().length > 0;
-          return (
-            <li key={r.key}>
-              <button
-                type="button"
-                onClick={() => onJump(r.key)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "var(--s-3)",
-                  padding: "10px 12px",
-                  background: "var(--surface-sunken)",
-                  border: "1px solid var(--hairline)",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                <span style={{ fontWeight: 600, color: "var(--ink-1)" }}>
-                  {r.label}
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {!filled && !scoredKeys.has(r.key) ? null : null}
-                  <StatusChip status={r.status} />
-                  <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                    Edit →
-                  </span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+        {rows.map((r) => (
+          <li key={r.key}>
+            <button
+              type="button"
+              onClick={() => onJump(r.key)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "var(--s-3)",
+                padding: "10px 12px",
+                background: "var(--surface-sunken)",
+                border: "1px solid var(--hairline)",
+                borderRadius: 8,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span style={{ fontWeight: 600, color: "var(--ink-1)" }}>{r.label}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <StatusChip status={r.status} />
+                <span style={{ fontSize: 12, color: "var(--ink-3)" }}>Edit →</span>
+              </span>
+            </button>
+          </li>
+        ))}
       </ul>
 
       <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.5 }}>
         Hit <strong>Finish</strong> to save and head back to your dashboard. You
-        can come back and refine any section any time.
+        can refine any section any time.
       </p>
     </div>
   );

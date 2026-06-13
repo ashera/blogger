@@ -1,11 +1,11 @@
-// Configuration for the brand-profile wizard: per-section copy, the interview
-// questions the "help me write this" panel asks, and the guidance the AI uses
-// to turn the user's answers into the section. Pure data (no server-only) so
-// both the client wizard and the server write-action can import it.
+// Configuration for the brand-profile wizard: per-section copy plus the
+// guidance the AI uses when rewriting the reference ("frockd") sections to fit
+// the user's brand. Pure data (no server-only) so both the client wizard and
+// the server generate-action can import it.
 
 import type { BrandProfile } from "@/lib/brand-score";
 
-/** Brand-profile fields that get the interview + AI-write treatment. */
+/** Brand-profile fields shown as their own wizard step. */
 export type BrandSectionKey =
   | "audience"
   | "voice"
@@ -14,6 +14,17 @@ export type BrandSectionKey =
   | "stats"
   | "stories"
   | "avoid";
+
+/** Sections the AI generates from the user's brand/url/audience (audience is
+ *  entered by hand, so it is not generated). */
+export const GENERATED_SECTIONS: BrandSectionKey[] = [
+  "voice",
+  "humour",
+  "perspective",
+  "stats",
+  "stories",
+  "avoid",
+];
 
 export type BrandSection = {
   key: BrandSectionKey;
@@ -24,11 +35,9 @@ export type BrandSection = {
   placeholder: string;
   rows: number;
   maxLength: number;
-  /** Interview questions the AI-assist panel asks before writing. */
-  questions: string[];
-  /** What the AI should produce, in its own words (instructions, not prose). */
+  /** What the AI should produce for this section (instructions, not prose). */
   writeGuidance: string;
-  /** Rough target length for the written section. */
+  /** Rough target length for the generated section. */
   lengthHint: string;
 };
 
@@ -37,18 +46,13 @@ export const BRAND_SECTIONS: Record<BrandSectionKey, BrandSection> = {
     key: "audience",
     label: "Audience",
     intro:
-      "Who you're writing for. The clearer this is, the better every post pitches to the right reader.",
+      "Who you're writing for. The clearer this is, the better the AI can tailor every other section to your readers.",
     placeholder:
       "e.g. Home baristas who want café-quality coffee without pro gear.",
     rows: 4,
     maxLength: 600,
-    questions: [
-      "Who is your ideal reader? Describe them in a sentence — role, life stage, what they care about.",
-      "What do they already know, and what are they trying to achieve?",
-      "Where are they reading, and what would make a post genuinely useful to them?",
-    ],
     writeGuidance:
-      "A description of the blog's target audience: who they are, their level of knowledge, their goals, and the context they read in. This guides how posts pitch depth and framing.",
+      "A description of the blog's target audience: who they are, their level of knowledge, their goals, and the context they read in.",
     lengthHint: "Keep it to 2–4 sentences.",
   },
   voice: {
@@ -60,13 +64,8 @@ export const BRAND_SECTIONS: Record<BrandSectionKey, BrandSection> = {
       "e.g. Friendly and practical, lightly witty, never salesy. Short punchy sentences. Speaks to the reader as 'you'.",
     rows: 12,
     maxLength: 8000,
-    questions: [
-      "Who's the imaginary person writing your posts? Describe their personality.",
-      "How should sentences feel — short and punchy, flowing, formal, casual? Any formatting or rhythm habits?",
-      "Paste a sentence or two written in exactly the tone you want.",
-    ],
     writeGuidance:
-      "A voice & tone guide for the writer: the persona, sentence rhythm, vocabulary, formatting habits, and any AI-tells to avoid. Write it as instructions to the writer, and include a short sample line if helpful.",
+      "A voice & tone guide for the writer: invent a fitting author persona for this brand, then describe sentence rhythm, vocabulary, formatting habits, and AI-tells to avoid. Write it as instructions to the writer, with a short sample line.",
     lengthHint: "Aim for 1–3 short paragraphs.",
   },
   humour: {
@@ -78,13 +77,8 @@ export const BRAND_SECTIONS: Record<BrandSectionKey, BrandSection> = {
       "e.g. Dry and understated. Land the line and move on — never explain the joke. No puns.",
     rows: 8,
     maxLength: 8000,
-    questions: [
-      "How funny should posts be — bone dry, lightly witty, playful, or basically straight?",
-      "Where should humour land (intros, asides, examples) and where should it never go?",
-      "Any jokes, puns, or clichés to avoid entirely?",
-    ],
     writeGuidance:
-      "A guide to the kind of humour and wit the writer should use: how dry or playful, where it lands, how often, and what to avoid. If the user wants no humour, say so plainly.",
+      "A guide to the kind of humour and wit the writer should use: how dry or playful, where it lands, how often, and what to avoid — matched to this brand and audience.",
     lengthHint: "1–2 short paragraphs.",
   },
   perspective: {
@@ -96,12 +90,8 @@ export const BRAND_SECTIONS: Record<BrandSectionKey, BrandSection> = {
       "e.g. We believe freshness beats fancy gear. We're skeptical of single-use pods.",
     rows: 5,
     maxLength: 4000,
-    questions: [
-      "What does your brand believe that others in your space don't?",
-      "What common advice or assumptions in your niche do you push back on?",
-    ],
     writeGuidance:
-      "A list of editorial stances and opinions the writer should hold and weave into posts naturally, as genuine positions rather than hedged neutrality.",
+      "A list of plausible editorial stances and opinions for this brand to hold and weave into posts naturally, as genuine positions rather than hedged neutrality.",
     lengthHint: "A few bullet points or short sentences.",
   },
   stats: {
@@ -113,13 +103,9 @@ export const BRAND_SECTIONS: Record<BrandSectionKey, BrandSection> = {
       "e.g. Average wedding-guest dress: $220 retail. Resale recovers 40–60% in the first month.",
     rows: 6,
     maxLength: 6000,
-    questions: [
-      "List the specific numbers, prices, or facts you want cited — one per line.",
-      "Are there figures the writer should never use or guess at?",
-    ],
     writeGuidance:
-      "A clear list of concrete facts, numbers, and prices the writer may cite verbatim. Only use the figures the user provided — never invent or round numbers.",
-    lengthHint: "A tidy bulleted list of the facts given.",
+      "A short TEMPLATE of the KINDS of facts and figures this brand should cite, as clearly-labelled placeholders for the user to replace with real numbers. Do NOT invent specific statistics — show the shape (e.g. '[your average order value]'), not fabricated authoritative numbers.",
+    lengthHint: "A tidy bulleted list of placeholders.",
   },
   stories: {
     key: "stories",
@@ -130,13 +116,9 @@ export const BRAND_SECTIONS: Record<BrandSectionKey, BrandSection> = {
       "e.g. The 2024 wedding season where three friends each spent $1,200+ on dresses worn once.",
     rows: 8,
     maxLength: 8000,
-    questions: [
-      "Share 1–3 real stories, customer examples, or origin moments.",
-      "What's the point or lesson each one illustrates?",
-    ],
     writeGuidance:
-      "A small set of real stories/anecdotes the writer can adapt, each with the point it illustrates. Keep the user's facts intact — don't fabricate details.",
-    lengthHint: "One short paragraph per story.",
+      "1–2 PROMPTS describing the kinds of real stories this brand could tell (origin moment, a customer example), as a scaffold for the user to fill in. Do NOT fabricate specific anecdotes as if they were real — frame them as prompts.",
+    lengthHint: "One short prompt per story idea.",
   },
   avoid: {
     key: "avoid",
@@ -146,12 +128,8 @@ export const BRAND_SECTIONS: Record<BrandSectionKey, BrandSection> = {
       "e.g. No hype words ('game-changing'), no medical claims, no competitor bashing.",
     rows: 4,
     maxLength: 2000,
-    questions: [
-      "What words, phrases, or hype should posts never use?",
-      "Any claims, topics, or competitor mentions to steer clear of?",
-    ],
     writeGuidance:
-      "A concise guardrail list of words, phrases, claims, topics, and styles the writer must avoid.",
+      "A concise guardrail list of hype words, AI-tells, claims, and styles the writer must avoid, tuned to this brand.",
     lengthHint: "A short bulleted list.",
   },
 };

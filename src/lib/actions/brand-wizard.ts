@@ -6,8 +6,10 @@ import { updateBrandProfile } from "@/lib/brand-profile";
 import type { BrandProfile } from "@/lib/brand-score";
 import {
   BRAND_SECTIONS,
+  GENERATED_SECTIONS,
   type BrandSectionKey,
 } from "@/lib/brand-sections";
+import { loadBrandReferenceText } from "@/lib/brand-references";
 import { callClaude } from "@/lib/anthropic";
 
 const LIMITS: Record<keyof BrandProfile, number> = {
@@ -56,84 +58,123 @@ export async function saveBrandDraft(
   } catch {
     return { ok: false, error: "Couldn't save just now — please try again." };
   }
-  // Refresh the surfaces that show completeness.
   revalidatePath("/app/brand");
   revalidatePath("/app");
   revalidatePath("/");
   return { ok: true };
 }
 
-export type InterviewAnswer = { q: string; a: string };
+export type GeneratedSections = Record<
+  Exclude<BrandSectionKey, "audience">,
+  string
+>;
+
+const SUBMIT_TOOL = {
+  name: "submit_brand_profile",
+  description: "Submit the rewritten brand-profile sections.",
+  input_schema: {
+    type: "object",
+    properties: Object.fromEntries(
+      GENERATED_SECTIONS.map((k) => [
+        k,
+        { type: "string", description: BRAND_SECTIONS[k].writeGuidance },
+      ]),
+    ),
+    required: [...GENERATED_SECTIONS],
+  },
+} as const;
 
 /**
- * AI-write one brand-profile section from the user's interview answers, framed
- * by the brand name + audience (and the user's current draft, if any). Returns
- * the section text for the client to drop into the editable field.
+ * Rewrite the demo "frockd" reference sections into the user's own brand,
+ * driven by the brand name / site / audience they entered. One Claude call
+ * returns all six sections via a forced tool. The user then edits the results.
  */
-export async function writeBrandSection(args: {
-  section: BrandSectionKey;
-  answers: InterviewAnswer[];
-  brandName: string | null;
-  audience: string | null;
-  current: string | null;
-}): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+export async function generateBrandSections(args: {
+  brandName: string;
+  siteUrl: string;
+  audience: string;
+}): Promise<{ ok: true; sections: GeneratedSections } | { ok: false; error: string }> {
   const me = await getCurrentUser();
   if (!me) return { ok: false, error: "You need to be signed in." };
 
-  const section = BRAND_SECTIONS[args.section];
-  if (!section) return { ok: false, error: "Unknown section." };
-
-  const answered = args.answers
-    .map((x) => ({ q: x.q.trim(), a: x.a.trim() }))
-    .filter((x) => x.a.length > 0);
-  if (answered.length === 0) {
-    return { ok: false, error: "Answer at least one question first." };
+  const brandName = args.brandName.trim();
+  const audience = args.audience.trim();
+  if (!brandName || !audience) {
+    return {
+      ok: false,
+      error: "Add your brand name and audience first so the AI can tailor each section.",
+    };
   }
 
-  const system = `You help a user define their BRAND PROFILE — a set of instructions that will be given to an AI blog writer to make it write like them. You write ONE section at a time.
+  const refs = loadBrandReferenceText();
 
-Write the section as clear, concrete guidance/instructions for the writer — NOT as a blog post and NOT in the first person of a marketer pitching. Be specific and usable. Use the user's own facts; never invent specifics they didn't give. If an answer is vague, make a reasonable, on-brand assumption rather than asking again.
+  const system = `You set up a BRAND PROFILE — a set of instructions given to an AI blog writer so it writes in a specific brand's voice.
 
-Output ONLY the section content. No heading, no preamble, no surrounding quotes, no "Here is…".`;
+You are given an EXAMPLE profile written for a demo brand ("frockd", an Australian pre-loved formal-dress marketplace, written as stylist "Lou"). Rewrite each section so it fits a DIFFERENT brand, described below. Keep the same KIND of content, structure, and level of specific, opinionated detail — but invent an appropriate author persona, vocabulary, stances, and examples for the NEW brand and its audience. Drop every frockd-specific detail (dresses, weddings, Lou, Australian resale) unless it genuinely applies.
 
-  const ctx: string[] = [];
-  if (args.brandName) ctx.push(`Brand: ${args.brandName}`);
-  if (args.audience && args.section !== "audience") {
-    ctx.push(`Audience: ${args.audience.slice(0, 400)}`);
-  }
-  const current = (args.current ?? "").trim();
-  if (current.length > 0) {
-    ctx.push(
-      `Their current draft (improve/expand on it if useful):\n${current.slice(0, 1500)}`,
-    );
-  }
+Write each section as guidance/instructions to the writer, not as a blog post.
 
-  const qa = answered.map((x) => `Q: ${x.q}\nA: ${x.a}`).join("\n\n");
+Two sections need care:
+- KEY FACTS & STATS: do NOT invent specific statistics for the new brand. Produce a clearly-labelled template of the KINDS of figures they should add (e.g. "[your average project cost]"), so the user fills in real numbers.
+- STORIES & ANECDOTES: do NOT fabricate specific anecdotes as if real. Write short PROMPTS for the kinds of true stories this brand could tell, for the user to complete.
 
-  const user = `Section to write: ${section.label}
-What this section is for: ${section.writeGuidance}
-${ctx.length > 0 ? `\nContext:\n${ctx.join("\n")}\n` : ""}
-The user answered these interview questions:
+Keep every section tight and skimmable — a few short paragraphs or a bullet list each, no padding or repetition.
 
-${qa}
+Call submit_brand_profile exactly once with all sections. No free text.`;
 
-Write the ${section.label} section now from their answers. ${section.lengthHint} Output only the section content.`;
+  const sectionBlocks = GENERATED_SECTIONS.map((k) => {
+    const s = BRAND_SECTIONS[k];
+    return `### ${s.label} (field: ${k})
+Goal: ${s.writeGuidance}
+Target length: ${s.lengthHint}
+
+EXAMPLE (frockd) — rewrite this for the new brand:
+"""
+${refs[k] ?? "(none)"}
+"""`;
+  }).join("\n\n");
+
+  const user = `NEW BRAND
+Name: ${brandName}
+${args.siteUrl.trim() ? `Website: ${args.siteUrl.trim()}` : "Website: (none given)"}
+Audience: ${audience}
+
+Rewrite each section below for this brand and audience, then call submit_brand_profile.
+
+${sectionBlocks}`;
 
   const result = await callClaude({
     system,
     messages: [{ role: "user", content: user }],
-    maxTokens: 1000,
+    tools: [SUBMIT_TOOL],
+    toolChoice: { type: "tool", name: "submit_brand_profile" },
+    maxTokens: 4500,
   });
 
   if (!result.ok) {
     return {
       ok: false,
-      error: "The AI couldn't write that just now — please try again.",
+      error: "The AI couldn't generate the profile just now — please try again.",
     };
   }
-  const text = result.text.trim().slice(0, section.maxLength);
-  if (!text) {
-    return { ok: false, error: "The AI returned nothing — please try again." };
+
+  const call = result.toolUses.find((t) => t.name === "submit_brand_profile");
+  const input = (call?.input ?? null) as Record<string, unknown> | null;
+  if (!input) {
+    return {
+      ok: false,
+      error:
+        result.stopReason === "max_tokens"
+          ? "The profile was too long to finish — please try again."
+          : "The AI didn't return a profile — please try again.",
+    };
   }
-  return { ok: true, text };
+
+  const sections = {} as GeneratedSections;
+  for (const k of GENERATED_SECTIONS) {
+    const v = input[k];
+    const text = typeof v === "string" ? v.trim().slice(0, LIMITS[k]) : "";
+    sections[k as Exclude<BrandSectionKey, "audience">] = text;
+  }
+  return { ok: true, sections };
 }
