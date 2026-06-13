@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BrandProfile, FieldStatus } from "@/lib/brand-score";
 import { assessBrand } from "@/lib/brand-score";
-import { BRAND_SECTIONS, type BrandSectionKey } from "@/lib/brand-sections";
+import {
+  BRAND_SECTIONS,
+  GENERATED_SECTIONS,
+  type BrandSectionKey,
+} from "@/lib/brand-sections";
 import {
   saveBrandDraft,
   generateBrandSections,
@@ -91,12 +95,27 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  // Basics snapshot the current sections correspond to. Changing a Basics
+  // field (vs this) is what triggers a background regeneration on continue.
+  const [genBasics, setGenBasics] = useState(() => ({
+    brandName: initial.brandName ?? "",
+    siteUrl: initial.siteUrl ?? "",
+    audience: initial.audience ?? "",
+  }));
+  // The user manually edited a generated section this session.
+  const [sectionsEdited, setSectionsEdited] = useState(false);
+  const [warnOpen, setWarnOpen] = useState(false);
 
   const score = useMemo(() => assessBrand(values), [values]);
   const scoredKeys = useMemo(() => new Set(score.fields.map((f) => f.key)), [score]);
 
   function setField(key: keyof BrandProfile, v: string) {
     setValues((prev) => ({ ...prev, [key]: v }));
+  }
+
+  function setSection(key: keyof BrandProfile, v: string) {
+    setField(key, v);
+    setSectionsEdited(true);
   }
 
   async function persist(override?: Values): Promise<boolean> {
@@ -125,34 +144,85 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
     if (await persist()) router.push("/app");
   }
 
-  async function generate() {
+  const basicsChanged =
+    values.brandName.trim() !== genBasics.brandName.trim() ||
+    values.siteUrl.trim() !== genBasics.siteUrl.trim() ||
+    values.audience.trim() !== genBasics.audience.trim();
+
+  const hasSectionContent = GENERATED_SECTIONS.some(
+    (k) => values[k].trim().length > 0,
+  );
+
+  /** Run generation in the background — the wizard advances immediately and the
+   *  sections fill in (and autosave) when it resolves. */
+  function fireGeneration() {
+    if (!values.brandName.trim() || !values.audience.trim()) return;
+    const snap = {
+      brandName: values.brandName,
+      siteUrl: values.siteUrl,
+      audience: values.audience,
+    };
+    setGenBasics(snap);
+    setSectionsEdited(false);
+    setGenerating(true);
     setGenError(null);
-    if (!values.brandName.trim() || !values.audience.trim()) {
-      setGenError("Add your brand name and audience first so the AI can tailor each section.");
+    generateBrandSections(snap)
+      .then((res) => {
+        setGenerating(false);
+        if (!res.ok) {
+          setGenError(res.error);
+          return;
+        }
+        setValues((prev) => {
+          const merged = { ...prev, ...res.sections };
+          void saveBrandDraft(merged);
+          return merged;
+        });
+      })
+      .catch(() => {
+        setGenerating(false);
+        setGenError("The AI couldn't generate the profile — please try again.");
+      });
+  }
+
+  /** Forward from Basics: regenerate when a Basics field changed, warning first
+   *  if there's existing section content that would be overwritten. */
+  async function leaveBasics() {
+    if (!basicsChanged) {
+      await goTo(1);
       return;
     }
-    setGenerating(true);
-    const res = await generateBrandSections({
+    if (hasSectionContent) {
+      setWarnOpen(true);
+      return;
+    }
+    await persist();
+    fireGeneration();
+    setStep(1);
+    scrollTop();
+  }
+
+  async function confirmRegenerate() {
+    setWarnOpen(false);
+    await persist();
+    fireGeneration();
+    setStep(1);
+    scrollTop();
+  }
+
+  async function keepSections() {
+    setWarnOpen(false);
+    // Acknowledge the new basics so we don't keep prompting on every continue.
+    setGenBasics({
       brandName: values.brandName,
       siteUrl: values.siteUrl,
       audience: values.audience,
     });
-    if (!res.ok) {
-      setGenError(res.error);
-      setGenerating(false);
-      return;
-    }
-    const merged: Values = { ...values, ...res.sections };
-    setValues(merged);
-    await persist(merged);
-    setGenerating(false);
-    setStep(1); // jump to the first generated section (Voice)
-    scrollTop();
+    await goTo(1);
   }
 
   const current = STEPS[step]!;
   const isLast = step === STEPS.length - 1;
-  const busy = saving || generating;
 
   return (
     <div
@@ -199,7 +269,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
                   key={i}
                   type="button"
                   onClick={() => goTo(i)}
-                  disabled={busy}
+                  disabled={saving}
                   title={stepLabel(s)}
                   aria-current={active ? "step" : undefined}
                   style={{
@@ -219,7 +289,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
                     color: active ? "#fff" : i < step ? "var(--volt-700)" : "var(--ink-3)",
                     fontSize: 11,
                     fontWeight: 700,
-                    cursor: busy ? "default" : "pointer",
+                    cursor: saving ? "default" : "pointer",
                   }}
                 >
                   {i + 1}
@@ -250,12 +320,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
             <BasicsStep
               values={values}
               setField={setField}
-              onGenerate={generate}
-              generating={generating}
-              genError={genError}
-              hasGenerated={Boolean(
-                values.voice || values.humour || values.perspective,
-              )}
+              hasSectionContent={hasSectionContent}
             />
           )}
           {current.kind === "section" && (
@@ -263,8 +328,11 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
               key={current.key}
               sectionKey={current.key}
               value={values[current.key]}
-              onChange={(v) => setField(current.key, v)}
+              onChange={(v) => setSection(current.key, v)}
               optional={!scoredKeys.has(current.key)}
+              generating={generating}
+              genError={genError}
+              onRetry={fireGeneration}
             />
           )}
           {current.kind === "review" && (
@@ -304,7 +372,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
           <button
             type="button"
             className="btn --ghost"
-            disabled={step === 0 || busy}
+            disabled={step === 0 || saving}
             onClick={() => goTo(step - 1)}
             style={{ visibility: step === 0 ? "hidden" : "visible" }}
           >
@@ -320,20 +388,75 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
           </span>
 
           {isLast ? (
-            <button type="button" className="btn --primary" disabled={busy} onClick={finish}>
+            <button type="button" className="btn --primary" disabled={saving} onClick={finish}>
               {saving ? "Saving…" : "Finish"}
             </button>
           ) : (
             <button
               type="button"
               className="btn --primary"
-              disabled={busy}
-              onClick={() => goTo(step + 1)}
+              disabled={saving}
+              onClick={() => (step === 0 ? leaveBasics() : goTo(step + 1))}
             >
               Save &amp; continue →
             </button>
           )}
         </div>
+
+        {warnOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+              background: "color-mix(in oklab, var(--ink-1) 45%, transparent)",
+              display: "grid",
+              placeItems: "center",
+              padding: 16,
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setWarnOpen(false);
+            }}
+          >
+            <div
+              style={{
+                width: "min(520px, 100%)",
+                background: "var(--surface)",
+                borderRadius: 14,
+                boxShadow: "var(--e-4)",
+                padding: "var(--s-6) var(--s-7)",
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 22,
+                  letterSpacing: "-0.01em",
+                  color: "var(--ink-1)",
+                  margin: "0 0 var(--s-2)",
+                }}
+              >
+                Regenerate your sections?
+              </h2>
+              <p style={{ color: "var(--ink-3)", fontSize: 14, lineHeight: 1.5, margin: "0 0 var(--s-4)" }}>
+                You changed your basics, and you have section content that may
+                include your own edits. Regenerating will{" "}
+                <strong>replace every section</strong> with fresh AI drafts from
+                your new details. This can&rsquo;t be undone.
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+                <button type="button" className="btn --ghost" onClick={keepSections}>
+                  Keep my sections
+                </button>
+                <button type="button" className="btn --primary" onClick={confirmRegenerate}>
+                  Regenerate sections
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
@@ -342,19 +465,12 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
 function BasicsStep({
   values,
   setField,
-  onGenerate,
-  generating,
-  genError,
-  hasGenerated,
+  hasSectionContent,
 }: {
   values: Values;
   setField: (k: keyof BrandProfile, v: string) => void;
-  onGenerate: () => void;
-  generating: boolean;
-  genError: string | null;
-  hasGenerated: boolean;
+  hasSectionContent: boolean;
 }) {
-  const canGenerate = values.brandName.trim() && values.audience.trim();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
       <div>
@@ -406,70 +522,27 @@ function BasicsStep({
         <span className="field-help">{BRAND_SECTIONS.audience.intro}</span>
       </label>
 
-      {/* generate callout */}
-      <div
+      <p
         style={{
-          padding: "var(--s-4)",
+          margin: 0,
+          padding: "var(--s-3) var(--s-4)",
           background: "var(--volt-50)",
           border: "1px solid var(--volt-300)",
           borderRadius: 12,
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--s-3)",
+          fontSize: 13,
+          color: "var(--ink-2)",
+          lineHeight: 1.5,
         }}
       >
-        <div>
-          <strong style={{ color: "var(--ink-1)" }}>
-            ✨ Draft every section from these details
-          </strong>
-          <p
-            style={{
-              margin: "4px 0 0",
-              fontSize: 13,
-              color: "var(--ink-2)",
-              lineHeight: 1.5,
-            }}
-          >
-            The AI writes your voice, humour, point of view, facts, stories, and
-            guardrails — tailored to your brand and audience. You then edit each
-            one in the next steps.
-            {hasGenerated && (
-              <>
-                {" "}
-                <strong>This replaces the current section text.</strong>
-              </>
-            )}
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="btn --primary"
-            onClick={onGenerate}
-            disabled={generating || !canGenerate}
-          >
-            {generating
-              ? "Writing your profile…"
-              : hasGenerated
-                ? "Regenerate from these details"
-                : "Generate my brand profile"}
-          </button>
-          {generating ? (
-            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-              Drafting all six sections — this can take a minute or two.
-            </span>
-          ) : !canGenerate ? (
-            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-              Add a brand name and audience to enable this.
-            </span>
-          ) : null}
-        </div>
-        {genError && (
-          <p className="form-error" style={{ margin: 0 }}>
-            {genError}
-          </p>
+        ✨ When you continue, the AI drafts every section from these details in
+        the background — you edit each one in the next steps.
+        {hasSectionContent && (
+          <>
+            {" "}
+            Change a field above and it&rsquo;ll only redraft if you confirm.
+          </>
         )}
-      </div>
+      </p>
     </div>
   );
 }
@@ -479,11 +552,17 @@ function SectionStep({
   value,
   onChange,
   optional,
+  generating,
+  genError,
+  onRetry,
 }: {
   sectionKey: BrandSectionKey;
   value: string;
   onChange: (v: string) => void;
   optional: boolean;
+  generating: boolean;
+  genError: string | null;
+  onRetry: () => void;
 }) {
   const section = BRAND_SECTIONS[sectionKey];
   return (
@@ -497,16 +576,49 @@ function SectionStep({
       <p className="card-sub" style={{ margin: 0 }}>
         {section.intro}
       </p>
+
+      {generating && (
+        <p
+          role="status"
+          style={{
+            margin: 0,
+            padding: "8px 12px",
+            background: "var(--volt-50)",
+            border: "1px solid var(--volt-300)",
+            borderRadius: 8,
+            fontSize: 13,
+            color: "var(--volt-800)",
+          }}
+        >
+          ✨ Drafting from your details… this can take a minute or two. You can
+          keep moving — sections fill in as they&rsquo;re ready.
+        </p>
+      )}
+      {!generating && genError && (
+        <div
+          className="form-error"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
+        >
+          <span>{genError}</span>
+          <button type="button" className="btn --ghost --sm" onClick={onRetry}>
+            Retry
+          </button>
+        </div>
+      )}
+
       <textarea
         className="input"
         rows={section.rows}
         maxLength={section.maxLength}
         value={value}
+        disabled={generating}
         onChange={(e) => onChange(e.target.value)}
         placeholder={
-          value
-            ? section.placeholder
-            : `Generate from the first step, or write your own. ${section.placeholder}`
+          generating
+            ? "Generating…"
+            : value
+              ? section.placeholder
+              : `Write your own, or change a Basics field to have the AI draft it. ${section.placeholder}`
         }
       />
       <div style={{ textAlign: "right", fontSize: 11, color: "var(--ink-4)" }}>
