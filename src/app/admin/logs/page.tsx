@@ -104,6 +104,7 @@ export default async function LogManagementPage({
         className="form-card"
         style={{
           display: "flex",
+          flexDirection: "row",
           gap: "var(--s-3)",
           flexWrap: "wrap",
           alignItems: "flex-end",
