@@ -105,6 +105,7 @@ const STEPS: Array<{ n: string; title: string; desc: string }> = [
 
 /** Encouragement copy for the brand-profile completeness meter. */
 function brandMeterMessage(pct: number): string {
+  if (pct >= 100) return "Refine my brand settings";
   if (pct === 0) return "Set it up to shape every post";
   if (pct < 34) return "Add more to sharpen your voice";
   if (pct < 67) return "Coming along — keep going";
@@ -156,7 +157,7 @@ export default async function Home() {
           </div>
         </div>
 
-        {user && brandPct !== null && brandPct < 100 && (
+        {user && brandPct !== null && (
           <Link href="/app/brand" className="hero-brand-meter">
             <div className="row">
               <span className="label">Brand profile</span>
