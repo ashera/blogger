@@ -134,7 +134,12 @@ export default async function SerpStepPage({
               <input type="hidden" name="seedId" value={seed.id} />
               <SubmitButton
                 variant={serp ? "ghost" : "primary"}
-                pendingLabel="Running… (5–15s)"
+                pendingLabel="Running…"
+                waitModal={{
+                  title: "Researching the live SERP…",
+                  subtext:
+                    "Reading the top-ranking pages for your keyword — this can take 20–60 seconds.",
+                }}
               >
                 {serp ? "Re-run analysis" : "Run analysis"}
               </SubmitButton>

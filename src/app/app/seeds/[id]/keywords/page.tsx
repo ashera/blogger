@@ -109,7 +109,15 @@ export default async function KeywordsStepPage({
             />
           </Field>
           <div style={{ marginTop: "var(--s-3)" }}>
-            <SubmitButton variant="primary" pendingLabel="Expanding… (5–15s)">
+            <SubmitButton
+              variant="primary"
+              pendingLabel="Expanding…"
+              waitModal={{
+                title: "Building your keyword cluster…",
+                subtext:
+                  "Expanding your starters into a focused cluster — usually 5–15 seconds.",
+              }}
+            >
               {hasCluster ? "Re-expand into a cluster →" : "Expand into a cluster →"}
             </SubmitButton>
           </div>

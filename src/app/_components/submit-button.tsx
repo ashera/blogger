@@ -2,18 +2,24 @@
 
 import { useFormStatus } from "react-dom";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Modal } from "./modal";
+import { WaitingMessage } from "./waiting-quotes";
 
 type Variant = "primary" | "dark" | "ghost" | "quiet";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
   pendingLabel?: ReactNode;
+  /** When set, shows a blocking waiting dialog (spinner + rotating quotes)
+   *  while the form is submitting — for long AI calls. */
+  waitModal?: { title?: string; subtext?: string };
   children: ReactNode;
 };
 
 export function SubmitButton({
   variant = "dark",
   pendingLabel,
+  waitModal,
   children,
   className,
   ...rest
@@ -21,22 +27,35 @@ export function SubmitButton({
   const { pending } = useFormStatus();
   const cls = ["btn", `--${variant}`, className].filter(Boolean).join(" ");
   return (
-    <button
-      {...rest}
-      type="submit"
-      disabled={pending || rest.disabled}
-      aria-busy={pending || undefined}
-      className={cls}
-    >
-      {pending ? (
-        <>
-          <Spinner />
-          {pendingLabel ?? "Working…"}
-        </>
-      ) : (
-        children
+    <>
+      <button
+        {...rest}
+        type="submit"
+        disabled={pending || rest.disabled}
+        aria-busy={pending || undefined}
+        className={cls}
+      >
+        {pending ? (
+          <>
+            <Spinner />
+            {pendingLabel ?? "Working…"}
+          </>
+        ) : (
+          children
+        )}
+      </button>
+      {waitModal && (
+        <Modal
+          open={pending}
+          onClose={() => {}}
+          dismissable={false}
+          maxWidth={460}
+          padding="var(--s-7)"
+        >
+          <WaitingMessage title={waitModal.title} subtext={waitModal.subtext} />
+        </Modal>
       )}
-    </button>
+    </>
   );
 }
 
