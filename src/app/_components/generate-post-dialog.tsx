@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Modal } from "./modal";
+import { WaitingMessage } from "./waiting-quotes";
 
 type Props = {
   systemPrompt: string;
@@ -279,40 +280,11 @@ function ConfirmContent({
 
   if (pending) {
     return (
-      <div
-        style={{
-          padding: "var(--s-7) var(--s-5)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "var(--s-3)",
-          textAlign: "center",
-        }}
-      >
-        <Spinner size={36} />
-        <h3 style={{ margin: 0, fontSize: 18 }}>Generating draft post…</h3>
-        <p
-          style={{
-            margin: 0,
-            color: "var(--ink-3)",
-            fontSize: 14,
-            maxWidth: 480,
-          }}
-        >
-          Writing your post from the seed&rsquo;s keywords, SERP analysis, hero
-          images, and your brand profile. Typical run is 30–60 seconds.
-          You&rsquo;ll land on the draft edit page when it&rsquo;s ready.
-        </p>
-        <p
-          style={{
-            margin: 0,
-            color: "var(--ink-3)",
-            fontSize: 12,
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          Don&rsquo;t close this tab.
-        </p>
+      <div style={{ padding: "var(--s-8) var(--s-5)" }}>
+        <WaitingMessage
+          title="Generating draft post…"
+          subtext="Don't close this tab — this usually takes 30–60 seconds."
+        />
       </div>
     );
   }
@@ -522,19 +494,3 @@ function PromptBlock({
   );
 }
 
-function Spinner({ size = 16 }: { size?: number }) {
-  return (
-    <span
-      aria-hidden
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        border: `${Math.max(2, size / 12)}px solid var(--ink-3)`,
-        borderTopColor: "transparent",
-        animation: "submit-spin 0.7s linear infinite",
-        display: "inline-block",
-      }}
-    />
-  );
-}

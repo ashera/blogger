@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BrandProfile, FieldStatus } from "@/lib/brand-score";
@@ -15,6 +15,7 @@ import {
   generateBrandSections,
 } from "@/lib/actions/brand-wizard";
 import { Modal } from "@/app/_components/modal";
+import { WaitingMessage } from "@/app/_components/waiting-quotes";
 
 type Values = Record<keyof BrandProfile, string>;
 
@@ -32,20 +33,6 @@ const STEPS: Step[] = [
   { kind: "section", key: "stories" },
   { kind: "section", key: "avoid" },
   { kind: "review" },
-];
-
-// Shown, one at a time, while the (blocking) generation runs.
-const GEN_MESSAGES = [
-  "Reading your audience's mind…",
-  "Finding your brand's voice (it was behind the couch)…",
-  "Teaching the robot to sound like you, not a robot…",
-  "Drafting opinions you didn't know you had…",
-  "Workshopping jokes with the humour department…",
-  "Quietly removing every instance of “game-changing”…",
-  "Sprinkling in just enough personality…",
-  "Negotiating with the rate limiter…",
-  "Arguing about the Oxford comma…",
-  "Polishing the finishing touches…",
 ];
 
 function stepLabel(s: Step): string {
@@ -110,7 +97,6 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const [msgIdx, setMsgIdx] = useState(0);
   // Basics snapshot the current sections correspond to. Changing a Basics
   // field (vs this) is what triggers a background regeneration on continue.
   const [genBasics, setGenBasics] = useState(() => ({
@@ -168,17 +154,6 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
   const hasSectionContent = GENERATED_SECTIONS.some(
     (k) => values[k].trim().length > 0,
   );
-
-  // Cycle the humorous messages while the (blocking) generation runs.
-  useEffect(() => {
-    if (!generating) return;
-    setMsgIdx(0);
-    const id = setInterval(
-      () => setMsgIdx((i) => (i + 1) % GEN_MESSAGES.length),
-      3500,
-    );
-    return () => clearInterval(id);
-  }, [generating]);
 
   /** Generate synchronously, blocking behind the progress dialog. Advances to
    *  the first section on success; shows an error (retry/cancel) on failure. */
@@ -463,38 +438,11 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
         >
           <div style={{ textAlign: "center" }}>
             {generating ? (
-                <>
-                  <div style={{ display: "grid", placeItems: "center", marginBottom: "var(--s-4)" }}>
-                    <div className="bs-spinner" aria-hidden />
-                  </div>
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 20,
-                      color: "var(--ink-1)",
-                      margin: "0 0 var(--s-2)",
-                    }}
-                  >
-                    Writing your brand profile…
-                  </h2>
-                  <p
-                    role="status"
-                    aria-live="polite"
-                    style={{
-                      color: "var(--ink-2)",
-                      fontSize: 15,
-                      minHeight: 44,
-                      margin: "0 0 var(--s-3)",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {GEN_MESSAGES[msgIdx]}
-                  </p>
-                  <p style={{ color: "var(--ink-4)", fontSize: 12, margin: 0 }}>
-                    This can take a minute or two — please keep this open.
-                  </p>
-                </>
-              ) : (
+              <WaitingMessage
+                title="Writing your brand profile…"
+                subtext="This can take a minute or two — please keep this open."
+              />
+            ) : (
                 <>
                   <h2
                     style={{
