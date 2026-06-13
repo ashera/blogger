@@ -155,29 +155,27 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
   const busy = saving || generating;
 
   return (
-    <div className="page page--pad">
+    <div
+      className="page"
+      style={{ paddingTop: "var(--s-4)", paddingBottom: "var(--s-3)" }}
+    >
       <main style={{ maxWidth: 1040, margin: "0 auto" }}>
         <Link href="/app" className="back-link">
           ← Dashboard
         </Link>
 
-        <header style={{ margin: "var(--s-3) 0 var(--s-5)" }}>
-          <p className="eyebrow">Brand profile</p>
+        <header style={{ margin: "var(--s-2) 0 var(--s-3)" }}>
           <h1
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "var(--t-h1)",
+              fontSize: 26,
               color: "var(--ink-1)",
-              margin: "var(--s-2) 0 var(--s-3)",
+              margin: 0,
               letterSpacing: "-0.02em",
             }}
           >
             Set up how BlogSeeder writes for you
           </h1>
-          <p style={{ color: "var(--ink-3)", maxWidth: "60ch", margin: 0 }}>
-            Tell us your brand, site, and audience — the AI drafts every section
-            for you, and you edit each one to make it yours.
-          </p>
         </header>
 
         {/* progress + live score */}
@@ -304,14 +302,21 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
           )}
         </div>
 
-        {/* footer nav */}
+        {/* footer nav — sticky so Save/Continue is always reachable */}
         <div
           style={{
+            position: "sticky",
+            bottom: 0,
+            zIndex: 5,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: "var(--s-3)",
             flexWrap: "wrap",
+            background: "var(--paper)",
+            borderTop: "1px solid var(--hairline)",
+            padding: "var(--s-3) 0",
+            boxShadow: "0 -6px 16px color-mix(in oklab, var(--ink-1) 6%, transparent)",
           }}
         >
           <button
