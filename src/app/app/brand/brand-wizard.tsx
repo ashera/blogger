@@ -156,7 +156,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
 
   return (
     <div className="page page--pad">
-      <main style={{ maxWidth: 800, margin: "0 auto" }}>
+      <main style={{ maxWidth: 1040, margin: "0 auto" }}>
         <Link href="/app" className="back-link">
           ← Dashboard
         </Link>
