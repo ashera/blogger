@@ -1,4 +1,5 @@
 import "server-only";
+import { logApiInfo } from "@/lib/error-log";
 
 const API_URL = "https://api.pexels.com/v1/search";
 
@@ -34,6 +35,7 @@ export async function searchPexels(
     per_page: String(opts.perPage ?? 1),
     orientation: "landscape",
   });
+  const startedAt = Date.now();
   try {
     const res = await fetch(`${API_URL}?${params.toString()}`, {
       headers: { Authorization: apiKey },
@@ -47,12 +49,30 @@ export async function searchPexels(
       photos?: PexelsPhoto[];
       next_page?: string | null;
     };
+    const photos = json.photos ?? [];
+    const durationMs = Date.now() - startedAt;
+    await logApiInfo({
+      source: "pexels",
+      context: "image-search",
+      durationMs,
+      message: `"${query}" · ${photos.length} photo${photos.length === 1 ? "" : "s"} (page ${opts.page ?? 1})`,
+      detail: JSON.stringify(
+        {
+          endpoint: "GET /v1/search",
+          query,
+          page: opts.page ?? 1,
+          perPage: opts.perPage ?? 1,
+          results: photos.length,
+          durationMs,
+        },
+        null,
+        2,
+      ),
+    });
     return {
       ok: true,
-      photos: json.photos ?? [],
-      nextPage: json.next_page
-        ? Number((opts.page ?? 1) + 1)
-        : null,
+      photos,
+      nextPage: json.next_page ? Number((opts.page ?? 1) + 1) : null,
     };
   } catch (e) {
     return {

@@ -25,9 +25,9 @@ const ADMIN_LINKS: Array<{ href: string; title: string; desc: string }> = [
     desc: "View accounts, edit profiles, suspend, and log in as a user.",
   },
   {
-    href: "/admin/errors",
-    title: "Error Log",
-    desc: "External-service failures (AI writer, image search) for diagnosing user-reported issues.",
+    href: "/admin/logs",
+    title: "Log Management",
+    desc: "All app logs — errors, warnings, and info entries for every external API call. Filter and search.",
   },
   {
     href: "/admin/site-settings",

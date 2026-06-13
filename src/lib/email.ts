@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { query } from "@/lib/db";
+import { logApiInfo, logExternalError } from "@/lib/error-log";
 
 const FROM_DEFAULT = "blogger <noreply@example.com>";
 
@@ -40,6 +41,8 @@ export async function sendEmail(opts: {
     return { ok: false, error: "RESEND_API_KEY not configured" };
   }
   const from = process.env.RESEND_FROM ?? FROM_DEFAULT;
+  const toStr = Array.isArray(opts.to) ? opts.to.join(", ") : opts.to;
+  const startedAt = Date.now();
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -56,12 +59,37 @@ export async function sendEmail(opts: {
         text: opts.text,
       }),
     });
+    const durationMs = Date.now() - startedAt;
     if (!res.ok) {
       const error = await res.text().catch(() => `${res.status}`);
+      await logExternalError({
+        source: "resend",
+        context: "email-send",
+        durationMs,
+        message: `Resend ${res.status} — ${opts.subject}`,
+        detail: JSON.stringify({ to: toStr, subject: opts.subject, status: res.status, error }, null, 2),
+      });
       return { ok: false, error: `Resend ${res.status}: ${error}` };
     }
+    await logApiInfo({
+      source: "resend",
+      context: "email-send",
+      durationMs,
+      message: `to ${toStr} · ${opts.subject}`,
+      detail: JSON.stringify(
+        { endpoint: "POST /emails", to: toStr, subject: opts.subject, status: res.status, durationMs },
+        null,
+        2,
+      ),
+    });
     return { ok: true };
   } catch (e) {
+    await logExternalError({
+      source: "resend",
+      context: "email-send",
+      message: `Resend request failed — ${opts.subject}`,
+      detail: e instanceof Error ? e.message : String(e),
+    });
     return {
       ok: false,
       error: e instanceof Error ? e.message : String(e),

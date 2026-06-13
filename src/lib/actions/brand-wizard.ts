@@ -149,6 +149,7 @@ ${sectionBlocks}`;
     tools: [SUBMIT_TOOL],
     toolChoice: { type: "tool", name: "submit_brand_profile" },
     maxTokens: 4500,
+    logMeta: { context: "brand-profile-gen", userId: me.id },
   });
 
   if (!result.ok) {

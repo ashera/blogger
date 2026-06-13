@@ -1,4 +1,5 @@
 import "server-only";
+import { logApiInfo } from "@/lib/error-log";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -81,6 +82,8 @@ export type CallOpts = {
   maxTokens?: number;
   tools?: Tool[];
   toolChoice?: ToolChoice;
+  /** Optional metadata for the info log written on each call. */
+  logMeta?: { context?: string; userId?: string | null; seedId?: string | null };
 };
 
 export type ToolUseBlock = {
@@ -121,6 +124,8 @@ export async function callClaude(opts: CallOpts): Promise<CallResult> {
   }
   const payload = JSON.stringify(body);
 
+  const startedAt = Date.now();
+  const ctx = opts.logMeta?.context ?? "messages";
   let lastError = "Anthropic request failed";
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -160,6 +165,12 @@ export async function callClaude(opts: CallOpts): Promise<CallResult> {
           input?: unknown;
         }>;
         stop_reason?: string;
+        usage?: {
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_read_input_tokens?: number;
+          cache_creation_input_tokens?: number;
+        };
       };
       const blocks = json.content ?? [];
       // Server-managed tools (web_search, web_fetch) emit non-text content
@@ -181,6 +192,33 @@ export async function callClaude(opts: CallOpts): Promise<CallResult> {
       if (!text && toolUses.length === 0) {
         return { ok: false, error: "Empty response from Anthropic" };
       }
+      const durationMs = Date.now() - startedAt;
+      const usage = json.usage ?? {};
+      await logApiInfo({
+        source: "anthropic",
+        context: ctx,
+        userId: opts.logMeta?.userId ?? null,
+        seedId: opts.logMeta?.seedId ?? null,
+        durationMs,
+        message: `${model} · ${usage.input_tokens ?? "?"} in / ${
+          usage.output_tokens ?? "?"
+        } out · ${json.stop_reason ?? "?"}`,
+        detail: JSON.stringify(
+          {
+            endpoint: "POST /v1/messages",
+            model,
+            maxTokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
+            messages: opts.messages.length,
+            tools: (opts.tools ?? []).map((t) => (t as { name?: string }).name ?? "?"),
+            stopReason: json.stop_reason ?? null,
+            usage,
+            attempts: attempt + 1,
+            durationMs,
+          },
+          null,
+          2,
+        ),
+      });
       return {
         ok: true,
         text,

@@ -374,6 +374,16 @@ CREATE TABLE IF NOT EXISTS error_log (
 CREATE INDEX IF NOT EXISTS error_log_recent_idx
   ON error_log (created_at DESC);
 
+-- Broadened into a general application log: error | warn | info. Existing rows
+-- (external-service failures) default to 'error'. Info entries capture every
+-- outbound external-API call; see src/lib/error-log.ts.
+ALTER TABLE error_log
+  ADD COLUMN IF NOT EXISTS level TEXT NOT NULL DEFAULT 'error';
+ALTER TABLE error_log
+  ADD COLUMN IF NOT EXISTS duration_ms INTEGER;
+CREATE INDEX IF NOT EXISTS error_log_level_idx
+  ON error_log (level, created_at DESC);
+
 -- Backfill existing accounts as verified — pre-rollout users shouldn't be
 -- nagged after the fact.
 UPDATE users SET email_verified_at = COALESCE(email_verified_at, created_at);

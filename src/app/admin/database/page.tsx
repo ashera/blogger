@@ -194,7 +194,7 @@ const TABLE_DESCRIPTIONS: Record<string, TableMeta> = {
   },
   error_log: {
     group: "Auth & users",
-    desc: "External-service failures (AI writer, image search). Surfaced to admins at /admin/errors; users only see a generic message.",
+    desc: "Application log (errors, warnings, info). Info entries record every external API call. Managed at /admin/logs.",
   },
 
   // SEO / Outreach

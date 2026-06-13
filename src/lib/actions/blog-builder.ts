@@ -261,6 +261,7 @@ export async function expandSeedKeywords(formData: FormData): Promise<void> {
     system: CLUSTER_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
     maxTokens: settings.clusterMaxTokens,
+    logMeta: { context: "cluster-expand", userId: me.id, seedId },
   });
   if (!result.ok) {
     // eslint-disable-next-line no-console
@@ -526,6 +527,7 @@ export async function runSerpAnalysis(formData: FormData): Promise<void> {
     ],
     tools: [WEB_SEARCH_TOOL, WEB_FETCH_TOOL],
     maxTokens: settings.serpMaxTokens,
+    logMeta: { context: "serp-analysis", userId: me.id, seedId },
   });
   if (!result.ok) {
     // eslint-disable-next-line no-console
@@ -1177,6 +1179,7 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
     maxTokens: settings.postMaxTokens,
     tools: [SUBMIT_POST_TOOL],
     toolChoice: { type: "tool", name: "submit_post" },
+    logMeta: { context: "post-generation", userId: me.id, seedId },
   });
   if (!result.ok) {
     await finalizeAttempt(attemptId, {
