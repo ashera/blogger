@@ -14,6 +14,7 @@ import {
   saveBrandDraft,
   generateBrandSections,
 } from "@/lib/actions/brand-wizard";
+import { Modal } from "@/app/_components/modal";
 
 type Values = Record<keyof BrandProfile, string>;
 
@@ -425,86 +426,43 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
           )}
         </div>
 
-        {warnOpen && (
-          <div
-            role="dialog"
-            aria-modal="true"
+        <Modal open={warnOpen} onClose={() => setWarnOpen(false)} maxWidth={520}>
+          <h2
             style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 50,
-              background: "color-mix(in oklab, var(--ink-1) 45%, transparent)",
-              display: "grid",
-              placeItems: "center",
-              padding: 16,
-            }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setWarnOpen(false);
+              fontFamily: "var(--font-display)",
+              fontSize: 22,
+              letterSpacing: "-0.01em",
+              color: "var(--ink-1)",
+              margin: "0 0 var(--s-2)",
             }}
           >
-            <div
-              style={{
-                width: "min(520px, 100%)",
-                background: "var(--surface)",
-                borderRadius: 14,
-                boxShadow: "var(--e-4)",
-                padding: "var(--s-6) var(--s-7)",
-              }}
-            >
-              <h2
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 22,
-                  letterSpacing: "-0.01em",
-                  color: "var(--ink-1)",
-                  margin: "0 0 var(--s-2)",
-                }}
-              >
-                Regenerate your sections?
-              </h2>
-              <p style={{ color: "var(--ink-3)", fontSize: 14, lineHeight: 1.5, margin: "0 0 var(--s-4)" }}>
-                You changed your basics, and you have section content that may
-                include your own edits. Regenerating will{" "}
-                <strong>replace every section</strong> with fresh AI drafts from
-                your new details. This can&rsquo;t be undone.
-              </p>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" className="btn --ghost" onClick={keepSections}>
-                  Keep my sections
-                </button>
-                <button type="button" className="btn --primary" onClick={confirmRegenerate}>
-                  Regenerate sections
-                </button>
-              </div>
-            </div>
+            Regenerate your sections?
+          </h2>
+          <p style={{ color: "var(--ink-3)", fontSize: 14, lineHeight: 1.5, margin: "0 0 var(--s-4)" }}>
+            You changed your basics, and you have section content that may
+            include your own edits. Regenerating will{" "}
+            <strong>replace every section</strong> with fresh AI drafts from your
+            new details. This can&rsquo;t be undone.
+          </p>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="btn --ghost" onClick={keepSections}>
+              Keep my sections
+            </button>
+            <button type="button" className="btn --primary" onClick={confirmRegenerate}>
+              Regenerate sections
+            </button>
           </div>
-        )}
+        </Modal>
 
-        {(generating || genError) && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 60,
-              background: "color-mix(in oklab, var(--ink-1) 55%, transparent)",
-              display: "grid",
-              placeItems: "center",
-              padding: 16,
-            }}
-          >
-            <div
-              style={{
-                width: "min(460px, 100%)",
-                background: "var(--surface)",
-                borderRadius: 14,
-                boxShadow: "var(--e-4)",
-                padding: "var(--s-7)",
-                textAlign: "center",
-              }}
-            >
-              {generating ? (
+        <Modal
+          open={generating || !!genError}
+          onClose={() => setGenError(null)}
+          dismissable={!generating}
+          maxWidth={460}
+          padding="var(--s-7)"
+        >
+          <div style={{ textAlign: "center" }}>
+            {generating ? (
                 <>
                   <div style={{ display: "grid", placeItems: "center", marginBottom: "var(--s-4)" }}>
                     <div className="bs-spinner" aria-hidden />
@@ -565,9 +523,8 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
                   </div>
                 </>
               )}
-            </div>
           </div>
-        )}
+        </Modal>
       </main>
     </div>
   );

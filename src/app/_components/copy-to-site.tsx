@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import { getPostExport, type PostExport } from "@/lib/actions/blog-export";
+import { Modal } from "./modal";
 
 type Status = "idle" | "loading" | "ready" | "error";
 type Format = "rich" | "html" | "markdown";
@@ -25,22 +26,14 @@ export function CopyToSiteButton({
   triggerClassName?: string;
   triggerStyle?: CSSProperties;
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [data, setData] = useState<PostExport | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<Format | null>(null);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const onClose = () => setCopied(null);
-    dialog.addEventListener("close", onClose);
-    return () => dialog.removeEventListener("close", onClose);
-  }, []);
-
-  async function open() {
-    dialogRef.current?.showModal();
+  async function openDialog() {
+    setOpen(true);
     if (status === "ready" || status === "loading") return;
     setStatus("loading");
     setError("");
@@ -52,6 +45,11 @@ export function CopyToSiteButton({
       setError(res.error);
       setStatus("error");
     }
+  }
+
+  function closeDialog() {
+    setOpen(false);
+    setCopied(null);
   }
 
   function flash(which: Format) {
@@ -95,30 +93,15 @@ export function CopyToSiteButton({
     <>
       <button
         type="button"
-        onClick={open}
+        onClick={openDialog}
         className={triggerClassName}
         style={triggerStyle}
       >
         {triggerLabel}
       </button>
 
-      <dialog
-        ref={dialogRef}
-        onClick={(e) => {
-          if (e.target === dialogRef.current) dialogRef.current?.close();
-        }}
-        style={{
-          padding: 0,
-          border: 0,
-          borderRadius: 14,
-          maxWidth: 540,
-          width: "calc(100% - 32px)",
-          background: "var(--surface)",
-          color: "var(--ink-1)",
-          boxShadow: "var(--e-4)",
-        }}
-      >
-        <div style={{ padding: "var(--s-6) var(--s-7)" }}>
+      <Modal open={open} onClose={closeDialog} maxWidth={540}>
+        <div>
           <h2
             style={{
               fontFamily: "var(--font-display)",
@@ -208,14 +191,14 @@ export function CopyToSiteButton({
           >
             <button
               type="button"
-              onClick={() => dialogRef.current?.close()}
+              onClick={closeDialog}
               className="btn --ghost --sm"
             >
               Close
             </button>
           </div>
         </div>
-      </dialog>
+      </Modal>
     </>
   );
 }

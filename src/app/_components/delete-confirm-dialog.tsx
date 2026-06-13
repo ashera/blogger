@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { CSSProperties } from "react";
+import { Modal } from "./modal";
 
 /**
  * Generic 'type DELETE to confirm' destructive-action dialog for the
@@ -38,28 +39,15 @@ export function DeleteConfirmDialog({
    *  list row). Defaults to a small red-outlined pill. */
   triggerStyle?: CSSProperties;
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
 
-  useEffect(() => {
-    if (!open) return;
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    function onClose() {
-      setOpen(false);
-      setTyped("");
-    }
-    dialog.addEventListener("close", onClose);
-    return () => dialog.removeEventListener("close", onClose);
-  }, [open]);
-
   function openDialog() {
     setOpen(true);
-    dialogRef.current?.showModal();
   }
   function closeDialog() {
-    dialogRef.current?.close();
+    setOpen(false);
+    setTyped("");
   }
 
   const armed = typed.trim().toUpperCase() === confirmWord.toUpperCase();
@@ -74,22 +62,7 @@ export function DeleteConfirmDialog({
         {triggerLabel}
       </button>
 
-      <dialog
-        ref={dialogRef}
-        onClick={(e) => {
-          if (e.target === dialogRef.current) closeDialog();
-        }}
-        style={{
-          padding: 0,
-          border: 0,
-          borderRadius: 14,
-          maxWidth: 520,
-          width: "calc(100% - 32px)",
-          background: "var(--surface)",
-          color: "var(--ink-1)",
-          boxShadow: "var(--e-4)",
-        }}
-      >
+      <Modal open={open} onClose={closeDialog} maxWidth={520} padding="0">
         <form action={deleteAction}>
           <input type="hidden" name={idName} value={idValue} />
 
@@ -203,7 +176,7 @@ export function DeleteConfirmDialog({
             </div>
           </div>
         </form>
-      </dialog>
+      </Modal>
     </>
   );
 }

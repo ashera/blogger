@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Modal } from "./modal";
 
 type Props = {
   systemPrompt: string;
@@ -28,17 +29,17 @@ export function GeneratePostDialog({
   label,
   generateAction,
 }: Props) {
-  const ref = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<"preview" | "confirm">("preview");
   const [copied, setCopied] = useState<"system" | "user" | "both" | null>(null);
 
-  function open() {
+  function openDialog() {
     setStage("preview");
     setCopied(null);
-    ref.current?.showModal();
+    setOpen(true);
   }
   function close() {
-    ref.current?.close();
+    setOpen(false);
     setCopied(null);
     setStage("preview");
   }
@@ -56,7 +57,7 @@ export function GeneratePostDialog({
     <>
       <button
         type="button"
-        onClick={open}
+        onClick={openDialog}
         disabled={disabled}
         title={disabled ? disabledReason : "Preview the prompt"}
         className="btn --primary"
@@ -64,26 +65,7 @@ export function GeneratePostDialog({
         {label ?? "Generate Post"}
       </button>
 
-      <dialog
-        ref={ref}
-        onClick={(e) => {
-          // close on backdrop click — but only when not pending. The confirm
-          // form's pending state lives inside the form, so we rely on the
-          // submit button being disabled. Closing the dialog mid-submit is
-          // harmless because the server action redirects on completion.
-          if (e.target === ref.current) close();
-        }}
-        style={{
-          maxWidth: 880,
-          width: "min(880px, 92vw)",
-          maxHeight: "85vh",
-          padding: 0,
-          border: "1px solid var(--hairline)",
-          borderRadius: 12,
-          background: "var(--surface)",
-          color: "var(--ink-1)",
-        }}
-      >
+      <Modal open={open} onClose={close} maxWidth={880} padding="0">
         {stage === "preview" ? (
           <PreviewView
             systemPrompt={systemPrompt}
@@ -103,7 +85,7 @@ export function GeneratePostDialog({
             onClose={close}
           />
         )}
-      </dialog>
+      </Modal>
     </>
   );
 }
