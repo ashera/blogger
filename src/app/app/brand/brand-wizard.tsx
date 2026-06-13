@@ -375,13 +375,24 @@ function BasicsStep({
         </label>
       </div>
 
-      <SectionEditor
-        sectionKey="audience"
-        value={values.audience}
-        onChange={(v) => setField("audience", v)}
-        brandName={values.brandName}
-        audience={values.audience}
-      />
+      <div>
+        <span className="field-label" style={{ display: "block" }}>
+          {BRAND_SECTIONS.audience.label}
+        </span>
+        <p
+          className="field-help"
+          style={{ display: "block", margin: "0 0 8px" }}
+        >
+          {BRAND_SECTIONS.audience.intro}
+        </p>
+        <SectionEditor
+          sectionKey="audience"
+          value={values.audience}
+          onChange={(v) => setField("audience", v)}
+          brandName={values.brandName}
+          audience={values.audience}
+        />
+      </div>
     </div>
   );
 }
