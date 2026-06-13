@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BrandProfile, FieldStatus } from "@/lib/brand-score";
@@ -31,6 +31,20 @@ const STEPS: Step[] = [
   { kind: "section", key: "stories" },
   { kind: "section", key: "avoid" },
   { kind: "review" },
+];
+
+// Shown, one at a time, while the (blocking) generation runs.
+const GEN_MESSAGES = [
+  "Reading your audience's mind…",
+  "Finding your brand's voice (it was behind the couch)…",
+  "Teaching the robot to sound like you, not a robot…",
+  "Drafting opinions you didn't know you had…",
+  "Workshopping jokes with the humour department…",
+  "Quietly removing every instance of “game-changing”…",
+  "Sprinkling in just enough personality…",
+  "Negotiating with the rate limiter…",
+  "Arguing about the Oxford comma…",
+  "Polishing the finishing touches…",
 ];
 
 function stepLabel(s: Step): string {
@@ -95,6 +109,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const [msgIdx, setMsgIdx] = useState(0);
   // Basics snapshot the current sections correspond to. Changing a Basics
   // field (vs this) is what triggers a background regeneration on continue.
   const [genBasics, setGenBasics] = useState(() => ({
@@ -153,36 +168,50 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
     (k) => values[k].trim().length > 0,
   );
 
-  /** Run generation in the background — the wizard advances immediately and the
-   *  sections fill in (and autosave) when it resolves. */
-  function fireGeneration() {
-    if (!values.brandName.trim() || !values.audience.trim()) return;
+  // Cycle the humorous messages while the (blocking) generation runs.
+  useEffect(() => {
+    if (!generating) return;
+    setMsgIdx(0);
+    const id = setInterval(
+      () => setMsgIdx((i) => (i + 1) % GEN_MESSAGES.length),
+      3500,
+    );
+    return () => clearInterval(id);
+  }, [generating]);
+
+  /** Generate synchronously, blocking behind the progress dialog. Advances to
+   *  the first section on success; shows an error (retry/cancel) on failure. */
+  async function runGeneration() {
+    if (!values.brandName.trim() || !values.audience.trim()) {
+      setGenError("Add your brand name and audience first.");
+      return;
+    }
     const snap = {
       brandName: values.brandName,
       siteUrl: values.siteUrl,
       audience: values.audience,
     };
-    setGenBasics(snap);
-    setSectionsEdited(false);
-    setGenerating(true);
     setGenError(null);
-    generateBrandSections(snap)
-      .then((res) => {
+    setGenerating(true);
+    try {
+      const res = await generateBrandSections(snap);
+      if (!res.ok) {
         setGenerating(false);
-        if (!res.ok) {
-          setGenError(res.error);
-          return;
-        }
-        setValues((prev) => {
-          const merged = { ...prev, ...res.sections };
-          void saveBrandDraft(merged);
-          return merged;
-        });
-      })
-      .catch(() => {
-        setGenerating(false);
-        setGenError("The AI couldn't generate the profile — please try again.");
-      });
+        setGenError(res.error);
+        return;
+      }
+      const merged: Values = { ...values, ...res.sections };
+      setGenBasics(snap);
+      setSectionsEdited(false);
+      setValues(merged);
+      await persist(merged);
+      setGenerating(false);
+      setStep(1);
+      scrollTop();
+    } catch {
+      setGenerating(false);
+      setGenError("The AI couldn't generate the profile — please try again.");
+    }
   }
 
   /** Forward from Basics: regenerate when a Basics field changed, warning first
@@ -197,17 +226,13 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
       return;
     }
     await persist();
-    fireGeneration();
-    setStep(1);
-    scrollTop();
+    await runGeneration();
   }
 
   async function confirmRegenerate() {
     setWarnOpen(false);
     await persist();
-    fireGeneration();
-    setStep(1);
-    scrollTop();
+    await runGeneration();
   }
 
   async function keepSections() {
@@ -330,9 +355,6 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
               value={values[current.key]}
               onChange={(v) => setSection(current.key, v)}
               optional={!scoredKeys.has(current.key)}
-              generating={generating}
-              genError={genError}
-              onRetry={fireGeneration}
             />
           )}
           {current.kind === "review" && (
@@ -457,6 +479,95 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
             </div>
           </div>
         )}
+
+        {(generating || genError) && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 60,
+              background: "color-mix(in oklab, var(--ink-1) 55%, transparent)",
+              display: "grid",
+              placeItems: "center",
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                width: "min(460px, 100%)",
+                background: "var(--surface)",
+                borderRadius: 14,
+                boxShadow: "var(--e-4)",
+                padding: "var(--s-7)",
+                textAlign: "center",
+              }}
+            >
+              {generating ? (
+                <>
+                  <div style={{ display: "grid", placeItems: "center", marginBottom: "var(--s-4)" }}>
+                    <div className="bs-spinner" aria-hidden />
+                  </div>
+                  <h2
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 20,
+                      color: "var(--ink-1)",
+                      margin: "0 0 var(--s-2)",
+                    }}
+                  >
+                    Writing your brand profile…
+                  </h2>
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      color: "var(--ink-2)",
+                      fontSize: 15,
+                      minHeight: 44,
+                      margin: "0 0 var(--s-3)",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {GEN_MESSAGES[msgIdx]}
+                  </p>
+                  <p style={{ color: "var(--ink-4)", fontSize: 12, margin: 0 }}>
+                    This can take a minute or two — please keep this open.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 20,
+                      color: "var(--ink-1)",
+                      margin: "0 0 var(--s-2)",
+                    }}
+                  >
+                    Couldn&rsquo;t generate
+                  </h2>
+                  <p style={{ color: "var(--ink-3)", fontSize: 14, margin: "0 0 var(--s-4)", lineHeight: 1.5 }}>
+                    {genError}
+                  </p>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn --ghost"
+                      onClick={() => setGenError(null)}
+                    >
+                      Cancel
+                    </button>
+                    <button type="button" className="btn --primary" onClick={runGeneration}>
+                      Try again
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
@@ -534,8 +645,8 @@ function BasicsStep({
           lineHeight: 1.5,
         }}
       >
-        ✨ When you continue, the AI drafts every section from these details in
-        the background — you edit each one in the next steps.
+        ✨ When you continue, the AI drafts every section from these details —
+        it takes a minute or two, then you edit each one in the next steps.
         {hasSectionContent && (
           <>
             {" "}
@@ -552,17 +663,11 @@ function SectionStep({
   value,
   onChange,
   optional,
-  generating,
-  genError,
-  onRetry,
 }: {
   sectionKey: BrandSectionKey;
   value: string;
   onChange: (v: string) => void;
   optional: boolean;
-  generating: boolean;
-  genError: string | null;
-  onRetry: () => void;
 }) {
   const section = BRAND_SECTIONS[sectionKey];
   return (
@@ -576,49 +681,16 @@ function SectionStep({
       <p className="card-sub" style={{ margin: 0 }}>
         {section.intro}
       </p>
-
-      {generating && (
-        <p
-          role="status"
-          style={{
-            margin: 0,
-            padding: "8px 12px",
-            background: "var(--volt-50)",
-            border: "1px solid var(--volt-300)",
-            borderRadius: 8,
-            fontSize: 13,
-            color: "var(--volt-800)",
-          }}
-        >
-          ✨ Drafting from your details… this can take a minute or two. You can
-          keep moving — sections fill in as they&rsquo;re ready.
-        </p>
-      )}
-      {!generating && genError && (
-        <div
-          className="form-error"
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
-        >
-          <span>{genError}</span>
-          <button type="button" className="btn --ghost --sm" onClick={onRetry}>
-            Retry
-          </button>
-        </div>
-      )}
-
       <textarea
         className="input"
         rows={section.rows}
         maxLength={section.maxLength}
         value={value}
-        disabled={generating}
         onChange={(e) => onChange(e.target.value)}
         placeholder={
-          generating
-            ? "Generating…"
-            : value
-              ? section.placeholder
-              : `Write your own, or change a Basics field to have the AI draft it. ${section.placeholder}`
+          value
+            ? section.placeholder
+            : `Write your own, or change a Basics field to have the AI draft it. ${section.placeholder}`
         }
       />
       <div style={{ textAlign: "right", fontSize: 11, color: "var(--ink-4)" }}>
