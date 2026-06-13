@@ -178,53 +178,20 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
           </h1>
         </header>
 
-        {/* progress + live score */}
-        <div className="form-card" style={{ marginBottom: "var(--s-4)" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: "var(--s-3)",
-              flexWrap: "wrap",
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                color: "var(--ink-3)",
-              }}
-            >
-              Step {step + 1} of {STEPS.length} · {stepLabel(current)}
-            </span>
-            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-              Profile score{" "}
-              <strong style={{ color: "var(--ink-1)" }}>{score.percent}%</strong>
-            </span>
-          </div>
-          <div
-            style={{
-              marginTop: "var(--s-3)",
-              height: 6,
-              borderRadius: 999,
-              background: "var(--surface-sunken)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${(step / (STEPS.length - 1)) * 100}%`,
-                height: "100%",
-                background: "var(--volt-500)",
-                borderRadius: 999,
-                transition: "width var(--dur)",
-              }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 6, marginTop: "var(--s-3)", flexWrap: "wrap" }}>
+        {/* progress + live score — compact: dots double as the progress bar */}
+        <div
+          className="form-card"
+          style={{
+            marginBottom: "var(--s-3)",
+            padding: "var(--s-3) var(--s-4)",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: "var(--s-3)",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {STEPS.map((s, i) => {
               const active = i === step;
               return (
@@ -236,8 +203,8 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
                   title={stepLabel(s)}
                   aria-current={active ? "step" : undefined}
                   style={{
-                    width: 26,
-                    height: 26,
+                    width: 24,
+                    height: 24,
                     borderRadius: "50%",
                     border: active
                       ? "0"
@@ -250,7 +217,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
                         ? "var(--volt-50)"
                         : "var(--surface)",
                     color: active ? "#fff" : i < step ? "var(--volt-700)" : "var(--ink-3)",
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: 700,
                     cursor: busy ? "default" : "pointer",
                   }}
@@ -260,6 +227,21 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
               );
             })}
           </div>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--ink-3)",
+            }}
+          >
+            {stepLabel(current)}
+          </span>
+          <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--ink-3)" }}>
+            Score{" "}
+            <strong style={{ color: "var(--ink-1)" }}>{score.percent}%</strong>
+          </span>
         </div>
 
         {/* step body */}
