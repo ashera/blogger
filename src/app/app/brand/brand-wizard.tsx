@@ -74,7 +74,15 @@ function StatusChip({ status }: { status: FieldStatus | "optional" }) {
   );
 }
 
-export function BrandWizard({ initial }: { initial: BrandProfile }) {
+type BrandSamples = Record<BrandSectionKey, string[]>;
+
+export function BrandWizard({
+  initial,
+  samples,
+}: {
+  initial: BrandProfile;
+  samples: BrandSamples;
+}) {
   const router = useRouter();
   const [values, setValues] = useState<Values>(() => ({
     brandName: initial.brandName ?? "",
@@ -250,7 +258,11 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
         {/* step body */}
         <div className="form-card" style={{ marginBottom: "var(--s-4)" }}>
           {current.kind === "basics" && (
-            <BasicsStep values={values} setField={setField} />
+            <BasicsStep
+              values={values}
+              setField={setField}
+              audienceSamples={samples.audience}
+            />
           )}
           {current.kind === "section" && (
             <SectionStep
@@ -260,6 +272,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
               brandName={values.brandName}
               audience={values.audience}
               optional={!scoredKeys.has(current.key)}
+              samples={samples[current.key]}
             />
           )}
           {current.kind === "review" && (
@@ -334,9 +347,11 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
 function BasicsStep({
   values,
   setField,
+  audienceSamples,
 }: {
   values: Values;
   setField: (k: keyof BrandProfile, v: string) => void;
+  audienceSamples: string[];
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
@@ -391,6 +406,7 @@ function BasicsStep({
           onChange={(v) => setField("audience", v)}
           brandName={values.brandName}
           audience={values.audience}
+          samples={audienceSamples}
         />
       </div>
     </div>
@@ -404,6 +420,7 @@ function SectionStep({
   brandName,
   audience,
   optional,
+  samples,
 }: {
   sectionKey: BrandSectionKey;
   value: string;
@@ -411,6 +428,7 @@ function SectionStep({
   brandName: string;
   audience: string;
   optional: boolean;
+  samples: string[];
 }) {
   const section = BRAND_SECTIONS[sectionKey];
   return (
@@ -437,6 +455,7 @@ function SectionStep({
         onChange={onChange}
         brandName={brandName}
         audience={audience}
+        samples={samples}
       />
     </div>
   );
@@ -449,17 +468,25 @@ function SectionEditor({
   onChange,
   brandName,
   audience,
+  samples,
 }: {
   sectionKey: BrandSectionKey;
   value: string;
   onChange: (v: string) => void;
   brandName: string;
   audience: string;
+  samples: string[];
 }) {
   const section = BRAND_SECTIONS[sectionKey];
   const [open, setOpen] = useState(false);
+  // Prefill each answer with the reference-derived sample (editable). `touched`
+  // tracks which the user has changed, so untouched samples render in grey to
+  // signal "example — rewrite for your brand".
   const [answers, setAnswers] = useState<string[]>(() =>
-    section.questions.map(() => ""),
+    section.questions.map((_, i) => samples[i] ?? ""),
+  );
+  const [touched, setTouched] = useState<boolean[]>(() =>
+    section.questions.map(() => false),
   );
   const [writing, setWriting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -534,7 +561,9 @@ function SectionEditor({
         >
           <p style={{ margin: 0, fontSize: 13, color: "var(--ink-2)" }}>
             Answer what you can — the AI drafts the section from your answers.
-            Skip anything that doesn&rsquo;t apply.
+            Greyed text is example content from a demo brand;{" "}
+            <strong>rewrite it for your brand</strong> (or clear it) so your
+            posts don&rsquo;t sound like someone else.
           </p>
           {section.questions.map((q, i) => (
             <label key={i} style={{ display: "block" }}>
@@ -553,12 +582,26 @@ function SectionEditor({
                 className="input"
                 rows={2}
                 value={answers[i] ?? ""}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const v = e.target.value;
                   setAnswers((prev) => {
                     const n = [...prev];
-                    n[i] = e.target.value;
+                    n[i] = v;
                     return n;
-                  })
+                  });
+                  if (!touched[i]) {
+                    setTouched((prev) => {
+                      const n = [...prev];
+                      n[i] = true;
+                      return n;
+                    });
+                  }
+                }}
+                style={
+                  // Untouched sample → grey, to signal "example, edit me".
+                  !touched[i] && (samples[i] ?? "").length > 0
+                    ? { color: "var(--ink-4)" }
+                    : undefined
                 }
               />
             </label>
