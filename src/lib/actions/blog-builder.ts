@@ -64,6 +64,7 @@ import {
 } from "@/lib/blog-post-prompt";
 import { loadBrandProfile } from "@/lib/brand-profile";
 import { logExternalError } from "@/lib/error-log";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Routes + wizard helpers
@@ -248,6 +249,9 @@ export async function expandSeedKeywords(formData: FormData): Promise<void> {
   if (starters.length === 0) {
     redirect(`${seedKeywords(seedId)}?error=empty-starters`);
   }
+
+  const rl = await enforceRateLimit(me.id, "cluster");
+  if (!rl.ok) redirect(`${seedKeywords(seedId)}?error=rate-limited`);
 
   const userPrompt = [
     "Seed keywords:",
@@ -516,6 +520,9 @@ export async function runSerpAnalysis(formData: FormData): Promise<void> {
   const phrase = await loadSeedSearchPhrase(seedId, me.id);
   if (!phrase) redirect(SEEDS);
 
+  const rlSerp = await enforceRateLimit(me.id, "serp");
+  if (!rlSerp.ok) redirect(`${seedSerp(seedId)}?error=rate-limited`);
+
   const settings = await loadBlogBuilderSettings();
   const result = await callClaude({
     system: SERP_SYSTEM_PROMPT,
@@ -699,6 +706,9 @@ export async function findInitialImages(formData: FormData): Promise<void> {
   const phrase = await loadSeedSearchPhrase(seedId, me.id);
   if (!phrase) redirect(SEEDS);
 
+  const rlImg = await enforceRateLimit(me.id, "image");
+  if (!rlImg.ok) redirect(`${seedImages(seedId)}?error=rate-limited`);
+
   const photos = await fetchPexelsPage(phrase, 1, seedImages(seedId), {
     userId: me.id,
     seedId,
@@ -729,6 +739,9 @@ export async function refreshImageSlot(formData: FormData): Promise<void> {
   const storedPhrase = slotRowRes.rows[0]?.search_phrase ?? null;
   const phrase = storedPhrase ?? (await loadSeedSearchPhrase(seedId, me.id));
   if (!phrase) redirect(SEEDS);
+
+  const rlRefresh = await enforceRateLimit(me.id, "image");
+  if (!rlRefresh.ok) redirect(`${seedImages(seedId)}?error=rate-limited`);
 
   const existing = await query<{ source_id: string; page_offset: number }>(
     `SELECT source_id, page_offset FROM blog_seed_images
@@ -772,6 +785,9 @@ export async function addCustomKeywordImage(
   }
   await assertSeedOwned(seedId, me.id);
   const phrase = rawPhrase;
+
+  const rlAdd = await enforceRateLimit(me.id, "image");
+  if (!rlAdd.ok) redirect(`${seedImages(seedId)}?error=rate-limited`);
 
   const maxSlotRes = await query<{ max_slot: number | null }>(
     `SELECT MAX(slot)::int AS max_slot FROM blog_seed_images
@@ -1029,6 +1045,9 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
   const me = await requireUser(SEEDS);
   const seedId = String(formData.get("seedId") ?? "");
   if (!/^\d+$/.test(seedId)) redirect(SEEDS);
+
+  const rlPost = await enforceRateLimit(me.id, "post");
+  if (!rlPost.ok) redirect(`${seedGenerate(seedId)}?error=rate-limited`);
 
   const rawInstanceId = String(formData.get("instanceId") ?? "");
   const reuseInstanceId = /^\d+$/.test(rawInstanceId) ? rawInstanceId : null;

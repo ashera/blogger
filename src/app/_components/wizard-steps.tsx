@@ -280,6 +280,8 @@ export const WIZARD_ERRORS: Record<string, string> = {
     "You can't drop the primary keyword. Regenerate the cluster from different starters to change it.",
   "missing-serp": "Run the SERP analysis before generating a post.",
   "missing-images": "Include at least one hero image before generating a post.",
+  "rate-limited":
+    "You're doing that a lot. Take a short break and try again in a minute (or tomorrow if you've hit the daily limit).",
   "no-pexels-results":
     "No more photos for this phrase. Try a related keyword.",
   // Generic external-service failures — never leak the provider.

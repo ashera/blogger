@@ -334,6 +334,19 @@ ALTER TABLE brand_profiles
   ADD COLUMN IF NOT EXISTS agent_name TEXT;
 
 -- =========================================================
+-- Rate limiting: one row per metered action (AI / image calls) so a user
+-- can't trigger excessive external-API calls. See src/lib/rate-limit.ts.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS rate_events (
+  id         BIGSERIAL   PRIMARY KEY,
+  user_id    BIGINT      NOT NULL,
+  action     TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS rate_events_idx
+  ON rate_events (user_id, action, created_at DESC);
+
+-- =========================================================
 -- Site settings (single-row, keyed at id=1)
 -- =========================================================
 CREATE TABLE IF NOT EXISTS site_settings (

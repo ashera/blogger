@@ -11,6 +11,7 @@ import {
 } from "@/lib/brand-sections";
 import { loadBrandReferenceText } from "@/lib/brand-references";
 import { callClaude } from "@/lib/anthropic";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const LIMITS: Record<keyof BrandProfile, number> = {
   brandName: 120,
@@ -117,6 +118,9 @@ export async function generateBrandSections(args: {
       error: "Add your brand name and audience first so the AI can tailor each section.",
     };
   }
+
+  const rl = await enforceRateLimit(me.id, "brand");
+  if (!rl.ok) return { ok: false, error: rl.message };
 
   const refs = loadBrandReferenceText();
 
