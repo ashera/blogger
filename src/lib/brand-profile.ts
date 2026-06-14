@@ -26,13 +26,14 @@ type Row = {
   stats: string | null;
   stories: string | null;
   avoid: string | null;
+  agent_name: string | null;
 };
 
 export async function loadBrandProfile(userId: string): Promise<BrandProfile> {
   try {
     const r = await query<Row>(
       `SELECT brand_name, site_url, audience, voice, humour, perspective,
-              stats, stories, avoid
+              stats, stories, avoid, agent_name
          FROM brand_profiles WHERE user_id = $1::bigint LIMIT 1`,
       [userId],
     );
@@ -48,6 +49,7 @@ export async function loadBrandProfile(userId: string): Promise<BrandProfile> {
       stats: row.stats,
       stories: row.stories,
       avoid: row.avoid,
+      agentName: row.agent_name,
     };
   } catch {
     return EMPTY_BRAND_PROFILE;
@@ -61,8 +63,8 @@ export async function updateBrandProfile(
   await query(
     `INSERT INTO brand_profiles
        (user_id, brand_name, site_url, audience, voice, humour, perspective,
-        stats, stories, avoid, updated_at)
-     VALUES ($1::bigint, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        stats, stories, avoid, agent_name, updated_at)
+     VALUES ($1::bigint, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
      ON CONFLICT (user_id) DO UPDATE SET
        brand_name  = EXCLUDED.brand_name,
        site_url    = EXCLUDED.site_url,
@@ -73,6 +75,7 @@ export async function updateBrandProfile(
        stats       = EXCLUDED.stats,
        stories     = EXCLUDED.stories,
        avoid       = EXCLUDED.avoid,
+       agent_name  = EXCLUDED.agent_name,
        updated_at  = NOW()`,
     [
       userId,
@@ -85,6 +88,7 @@ export async function updateBrandProfile(
       next.stats,
       next.stories,
       next.avoid,
+      next.agentName,
     ],
   );
 }

@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
 import { loadBrandProfile, brandProfileCompleteness } from "@/lib/brand-profile";
+import { agentAvatarSrc, agentDisplayName } from "@/lib/agent";
 import { ButtonLink } from "./_components/ui";
 
 // 60s ISR. The page reads the current user cookie so it stays dynamic in
@@ -103,23 +104,22 @@ const STEPS: Array<{ n: string; title: string; desc: string }> = [
   },
 ];
 
-/** Encouragement copy for the brand-profile completeness meter. */
-function brandMeterMessage(pct: number): string {
-  if (pct >= 100) return "Refine my brand settings";
-  if (pct === 0) return "Set it up to shape every post";
-  if (pct < 34) return "Add more to sharpen your voice";
-  if (pct < 67) return "Coming along — keep going";
-  return "Almost there — finish it off";
+/** Encouragement copy for the agent-training meter. */
+function brandMeterMessage(pct: number, name: string): string {
+  if (pct >= 100) return `Refine ${name}'s training`;
+  if (pct === 0) return `Start training ${name}`;
+  if (pct < 34) return `Keep training ${name}`;
+  if (pct < 67) return `${name} is learning — keep going`;
+  return `Almost there — finish ${name}'s training`;
 }
 
 export default async function Home() {
   const user = await getCurrentUser();
-  const [latestPost, brandPct] = await Promise.all([
+  const [latestPost, profile] = await Promise.all([
     getHeroPost(user?.id ?? null),
-    user
-      ? loadBrandProfile(user.id).then(brandProfileCompleteness)
-      : Promise.resolve<number | null>(null),
+    user ? loadBrandProfile(user.id) : Promise.resolve(null),
   ]);
+  const brandPct = profile ? brandProfileCompleteness(profile) : null;
 
   return (
     <div className="page">
@@ -159,11 +159,29 @@ export default async function Home() {
 
         {user && brandPct !== null && (
           <Link href="/app/brand" className="hero-brand-meter">
-            <div className="row">
-              <span className="label">Brand profile</span>
-              <span className="pct">{brandPct}%</span>
+            <div className="row" style={{ alignItems: "center", gap: 10 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={agentAvatarSrc(user.id)}
+                alt=""
+                width={36}
+                height={36}
+                style={{ borderRadius: 8, display: "block", flex: "none" }}
+              />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="label" style={{ display: "block" }}>
+                  {profile?.agentName?.trim()
+                    ? `Your agent · ${profile.agentName.trim()}`
+                    : "Your blogging agent"}
+                </span>
+                <span style={{ fontSize: 12, opacity: 0.85 }}>
+                  Trained <strong>{brandPct}%</strong>
+                </span>
+              </span>
             </div>
-            <span className="msg">{brandMeterMessage(brandPct)} →</span>
+            <span className="msg">
+              {brandMeterMessage(brandPct, agentDisplayName(profile?.agentName))} →
+            </span>
             <div className="bar" aria-hidden>
               <span style={{ width: `${brandPct}%` }} />
             </div>

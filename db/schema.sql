@@ -327,6 +327,12 @@ ALTER TABLE brand_profiles
   ADD COLUMN IF NOT EXISTS stats   TEXT,
   ADD COLUMN IF NOT EXISTS stories TEXT;
 
+-- "Blogging agent" persona: an editable name for the writer the profile
+-- trains. The avatar is auto-assigned (derived from the user id), so no
+-- column is needed for it. See src/lib/agent.ts.
+ALTER TABLE brand_profiles
+  ADD COLUMN IF NOT EXISTS agent_name TEXT;
+
 -- =========================================================
 -- Site settings (single-row, keyed at id=1)
 -- =========================================================

@@ -16,6 +16,7 @@ import {
 } from "@/lib/actions/brand-wizard";
 import { Modal } from "@/app/_components/modal";
 import { WaitingMessage } from "@/app/_components/waiting-quotes";
+import { agentAvatarSrc } from "@/lib/agent";
 
 type Values = Record<keyof BrandProfile, string>;
 
@@ -79,7 +80,13 @@ function StatusChip({ status }: { status: FieldStatus | "optional" }) {
   );
 }
 
-export function BrandWizard({ initial }: { initial: BrandProfile }) {
+export function BrandWizard({
+  initial,
+  avatarSeed,
+}: {
+  initial: BrandProfile;
+  avatarSeed: string;
+}) {
   const router = useRouter();
   const [values, setValues] = useState<Values>(() => ({
     brandName: initial.brandName ?? "",
@@ -91,6 +98,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
     stats: initial.stats ?? "",
     stories: initial.stories ?? "",
     avoid: initial.avoid ?? "",
+    agentName: initial.agentName ?? "",
   }));
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -176,7 +184,12 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
         setGenError(res.error);
         return;
       }
-      const merged: Values = { ...values, ...res.sections };
+      const merged: Values = {
+        ...values,
+        ...res.sections,
+        // Suggest the AI's persona name, but keep a name the user already set.
+        agentName: values.agentName.trim() ? values.agentName : res.agentName,
+      };
       setGenBasics(snap);
       setSectionsEdited(false);
       setValues(merged);
@@ -245,11 +258,11 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
               letterSpacing: "-0.02em",
             }}
           >
-            Set up how BlogSeeder writes for you
+            Train your blogging agent
           </h1>
         </header>
 
-        {/* progress + live score — compact: dots double as the progress bar */}
+        {/* agent + progress — compact: avatar, dots, training % */}
         <div
           className="form-card"
           style={{
@@ -262,6 +275,30 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
             flexWrap: "wrap",
           }}
         >
+          <span
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={agentAvatarSrc(avatarSeed)}
+              alt=""
+              width={30}
+              height={30}
+              style={{ borderRadius: 8, display: "block", flex: "none" }}
+            />
+            <strong
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 14,
+                color: "var(--ink-1)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {values.agentName.trim() || "Your agent"}
+            </strong>
+          </span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {STEPS.map((s, i) => {
               const active = i === step;
@@ -310,7 +347,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
             {stepLabel(current)}
           </span>
           <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--ink-3)" }}>
-            Score{" "}
+            Trained{" "}
             <strong style={{ color: "var(--ink-1)" }}>{score.percent}%</strong>
           </span>
         </div>
@@ -322,6 +359,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
               values={values}
               setField={setField}
               hasSectionContent={hasSectionContent}
+              avatarSeed={avatarSeed}
             />
           )}
           {current.kind === "section" && (
@@ -439,7 +477,7 @@ export function BrandWizard({ initial }: { initial: BrandProfile }) {
           <div style={{ textAlign: "center" }}>
             {generating ? (
               <WaitingMessage
-                title="Writing your brand profile…"
+                title="Training your agent…"
                 subtext="This can take a minute or two — please keep this open."
               />
             ) : (
@@ -482,10 +520,12 @@ function BasicsStep({
   values,
   setField,
   hasSectionContent,
+  avatarSeed,
 }: {
   values: Values;
   setField: (k: keyof BrandProfile, v: string) => void;
   hasSectionContent: boolean;
+  avatarSeed: string;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
@@ -494,10 +534,48 @@ function BasicsStep({
           The basics
         </h2>
         <p className="card-sub" style={{ margin: 0 }}>
-          Name your blog, add your site, and say who it&rsquo;s for. The AI uses
-          these to draft every other section.
+          Tell your agent who it writes for. These details train every other
+          section.
         </p>
       </div>
+
+      {/* the agent */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--s-3)",
+          padding: "var(--s-3) var(--s-4)",
+          background: "var(--surface-sunken)",
+          border: "1px solid var(--hairline)",
+          borderRadius: 12,
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={agentAvatarSrc(avatarSeed)}
+          alt=""
+          width={52}
+          height={52}
+          style={{ borderRadius: 12, display: "block", flex: "none" }}
+        />
+        <label className="form-field" style={{ flex: 1, margin: 0, minWidth: 0 }}>
+          <span className="field-label">Your agent&rsquo;s name</span>
+          <input
+            className="input"
+            type="text"
+            maxLength={80}
+            value={values.agentName}
+            onChange={(e) => setField("agentName", e.target.value)}
+            placeholder="e.g. Sal — or let the AI name them"
+          />
+          <span className="field-help">
+            The persona writing your posts. The AI suggests one when it drafts;
+            change it anytime.
+          </span>
+        </label>
+      </div>
+
       <div className="grid-2">
         <label className="form-field">
           <span className="field-label">Brand / blog name</span>

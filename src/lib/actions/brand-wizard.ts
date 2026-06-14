@@ -22,6 +22,7 @@ const LIMITS: Record<keyof BrandProfile, number> = {
   stats: 6000,
   stories: 8000,
   avoid: 2000,
+  agentName: 80,
 };
 
 function clamp(v: string | null, max: number): string | null {
@@ -51,6 +52,7 @@ export async function saveBrandDraft(
     stats: clamp(values.stats, LIMITS.stats),
     stories: clamp(values.stories, LIMITS.stories),
     avoid: clamp(values.avoid, LIMITS.avoid),
+    agentName: clamp(values.agentName, LIMITS.agentName),
   };
 
   try {
@@ -74,13 +76,20 @@ const SUBMIT_TOOL = {
   description: "Submit the rewritten brand-profile sections.",
   input_schema: {
     type: "object",
-    properties: Object.fromEntries(
-      GENERATED_SECTIONS.map((k) => [
-        k,
-        { type: "string", description: BRAND_SECTIONS[k].writeGuidance },
-      ]),
-    ),
-    required: [...GENERATED_SECTIONS],
+    properties: {
+      ...Object.fromEntries(
+        GENERATED_SECTIONS.map((k) => [
+          k,
+          { type: "string", description: BRAND_SECTIONS[k].writeGuidance },
+        ]),
+      ),
+      agentName: {
+        type: "string",
+        description:
+          "A short, human first name (optionally with surname) for the writing persona you invented in the voice section — this becomes the name of the user's blogging 'agent'. E.g. 'Sal', 'Marcus Webb', 'Priya'.",
+      },
+    },
+    required: [...GENERATED_SECTIONS, "agentName"],
   },
 } as const;
 
@@ -93,7 +102,10 @@ export async function generateBrandSections(args: {
   brandName: string;
   siteUrl: string;
   audience: string;
-}): Promise<{ ok: true; sections: GeneratedSections } | { ok: false; error: string }> {
+}): Promise<
+  | { ok: true; sections: GeneratedSections; agentName: string }
+  | { ok: false; error: string }
+> {
   const me = await getCurrentUser();
   if (!me) return { ok: false, error: "You need to be signed in." };
 
@@ -177,5 +189,9 @@ ${sectionBlocks}`;
     const text = typeof v === "string" ? v.trim().slice(0, LIMITS[k]) : "";
     sections[k as Exclude<BrandSectionKey, "audience">] = text;
   }
-  return { ok: true, sections };
+  const agentName =
+    typeof input.agentName === "string"
+      ? input.agentName.trim().slice(0, LIMITS.agentName)
+      : "";
+  return { ok: true, sections, agentName };
 }

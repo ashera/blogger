@@ -8,5 +8,5 @@ export const metadata = { title: "Brand profile" };
 export default async function BrandProfilePage() {
   const me = await requireUser("/app/brand");
   const profile = await loadBrandProfile(me.id);
-  return <BrandWizard initial={profile} />;
+  return <BrandWizard initial={profile} avatarSeed={me.id} />;
 }
