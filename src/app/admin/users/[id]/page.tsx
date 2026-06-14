@@ -5,10 +5,13 @@ import { query } from "@/lib/db";
 import { LocalTime } from "@/app/_components/local-time";
 import {
   updateUserAsAdmin,
+  setUserPlan,
   toggleAdminRole,
   toggleUserSuspended,
 } from "@/lib/actions/users";
 import { startImpersonation } from "@/lib/actions/impersonation";
+import { PLAN_KEYS, PLANS, planKey } from "@/lib/plans";
+import { monthlyPostsUsed } from "@/lib/plan";
 import { Button, Field, Input } from "../../../_components/ui";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +22,7 @@ type UserRow = {
   id: string;
   email: string;
   is_admin: boolean;
+  plan: string | null;
   email_verified_at: string | null;
   title: string | null;
   first_name: string | null;
@@ -39,6 +43,7 @@ async function fetchUser(id: string): Promise<UserRow | null> {
       `SELECT u.id::text,
               u.email,
               u.is_admin,
+              u.plan,
               u.email_verified_at::text,
               u.title,
               u.first_name,
@@ -72,6 +77,8 @@ export default async function AdminUserDetailPage({
   const u = await fetchUser(id);
   if (!u) notFound();
 
+  const currentPlan = planKey(u.plan);
+  const postsThisMonth = await monthlyPostsUsed(u.id);
   const isSelf = u.id === me.id;
   const errorMessage = error ? ERRORS[error] : null;
 
@@ -88,6 +95,7 @@ export default async function AdminUserDetailPage({
           Joined <LocalTime iso={u.created_at} dateOnly /> ·{" "}
           {u.post_count} posts ·{" "}
           {u.is_admin ? "Admin" : "Member"} ·{" "}
+          {PLANS[currentPlan].name} plan ·{" "}
           {u.suspended_at ? "Suspended" : "Active"} ·{" "}
           {u.email_verified_at ? "Verified" : "Unverified"}
         </p>
@@ -154,6 +162,45 @@ export default async function AdminUserDetailPage({
               Save
             </Button>
           </div>
+        </form>
+      </section>
+
+      <section className="form-card" style={{ marginTop: "var(--s-5)" }}>
+        <h2 className="card-heading">Subscription plan</h2>
+        <p className="card-sub" style={{ marginTop: 4 }}>
+          {postsThisMonth} of {PLANS[currentPlan].monthlyPosts} posts generated
+          this month. Changing the plan adjusts the monthly post quota
+          immediately.
+        </p>
+        <form
+          action={setUserPlan}
+          style={{
+            display: "flex",
+            gap: "var(--s-3)",
+            alignItems: "flex-end",
+            marginTop: "var(--s-3)",
+            flexWrap: "wrap",
+          }}
+        >
+          <input type="hidden" name="userId" value={u.id} />
+          <Field label="Plan" htmlFor="plan">
+            <select
+              id="plan"
+              name="plan"
+              className="input"
+              defaultValue={currentPlan}
+            >
+              {PLAN_KEYS.map((k) => (
+                <option key={k} value={k}>
+                  {PLANS[k].name} — {PLANS[k].priceLabel} ·{" "}
+                  {PLANS[k].monthlyPosts} posts/mo
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Button type="submit" variant="primary" iconRight="check">
+            Update plan
+          </Button>
         </form>
       </section>
 

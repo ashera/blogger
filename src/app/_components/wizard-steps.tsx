@@ -282,6 +282,8 @@ export const WIZARD_ERRORS: Record<string, string> = {
   "missing-images": "Include at least one hero image before generating a post.",
   "rate-limited":
     "You're doing that a lot. Take a short break and try again in a minute (or tomorrow if you've hit the daily limit).",
+  quota:
+    "You've used all the posts in your plan this month. Upgrade your plan to generate more — see Pricing.",
   "no-pexels-results":
     "No more photos for this phrase. Try a related keyword.",
   // Generic external-service failures — never leak the provider.

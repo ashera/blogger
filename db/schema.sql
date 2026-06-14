@@ -27,7 +27,10 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS waist_cm          NUMERIC(4,1),
   ADD COLUMN IF NOT EXISTS hips_cm           NUMERIC(4,1),
   ADD COLUMN IF NOT EXISTS suspended_at      TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ,
+  -- Subscription plan key (see src/lib/plans.ts). Drives the monthly
+  -- post quota and feature gates. 'free' until upgraded.
+  ADD COLUMN IF NOT EXISTS plan              TEXT NOT NULL DEFAULT 'free';
 
 CREATE TABLE IF NOT EXISTS sessions (
   id          TEXT         PRIMARY KEY,

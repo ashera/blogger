@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { planKey } from "@/lib/plans";
 
 const TITLES = new Set(["Mr", "Mrs", "Ms", "Mx", "Dr", "Prof"]);
 
@@ -38,6 +39,22 @@ export async function updateUserAsAdmin(formData: FormData): Promise<void> {
       WHERE id = $4::bigint`,
     [title, firstName, surname, id],
   );
+
+  revalidatePath(`/admin/users/${id}`);
+  revalidatePath("/admin/users");
+  redirect(`/admin/users/${id}?saved=1`);
+}
+
+/** Admin override of a user's subscription plan. (Until self-serve
+ *  checkout exists, this is how plans get changed.) */
+export async function setUserPlan(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = getId(formData, "userId");
+  if (!id) redirect("/admin/users");
+
+  const plan = planKey(String(formData.get("plan") ?? ""));
+
+  await query(`UPDATE users SET plan = $1 WHERE id = $2::bigint`, [plan, id]);
 
   revalidatePath(`/admin/users/${id}`);
   revalidatePath("/admin/users");

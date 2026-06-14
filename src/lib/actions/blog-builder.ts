@@ -65,6 +65,7 @@ import {
 import { loadBrandProfile } from "@/lib/brand-profile";
 import { logExternalError } from "@/lib/error-log";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { getPlanUsage } from "@/lib/plan";
 
 // ---------------------------------------------------------------------------
 // Routes + wizard helpers
@@ -1045,6 +1046,10 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
   const me = await requireUser(SEEDS);
   const seedId = String(formData.get("seedId") ?? "");
   if (!/^\d+$/.test(seedId)) redirect(SEEDS);
+
+  // Monthly plan quota: a generated post is the metered/billed unit.
+  const usage = await getPlanUsage(me.id, me.plan);
+  if (usage.atLimit) redirect(`${seedGenerate(seedId)}?error=quota`);
 
   const rlPost = await enforceRateLimit(me.id, "post");
   if (!rlPost.ok) redirect(`${seedGenerate(seedId)}?error=rate-limited`);

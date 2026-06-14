@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
+import { planKey, type PlanKey } from "@/lib/plans";
 
 const SESSION_COOKIE = "session";
 const SESSION_TTL_DAYS = 30;
@@ -16,6 +17,9 @@ export type User = {
   /** Partner accounts are marketing collaborators scoped to one or more
    *  regions (see partner_marketing_regions). Admin-assigned. */
   isPartner: boolean;
+  /** Subscription plan key — drives the monthly post quota and feature
+   *  gates (see src/lib/plans.ts). */
+  plan: PlanKey;
   emailVerified: boolean;
   title: string | null;
   firstName: string | null;
@@ -92,6 +96,7 @@ export async function getCurrentUser(): Promise<User | null> {
       email: string;
       is_admin: boolean;
       is_partner: boolean;
+      plan: string | null;
       email_verified_at: string | null;
       title: string | null;
       first_name: string | null;
@@ -108,6 +113,7 @@ export async function getCurrentUser(): Promise<User | null> {
               u.email,
               u.is_admin,
               u.is_partner,
+              u.plan,
               u.email_verified_at::text,
               u.title,
               u.first_name,
@@ -140,6 +146,7 @@ export async function getCurrentUser(): Promise<User | null> {
       email: row.email,
       isAdmin: row.is_admin,
       isPartner: row.is_partner,
+      plan: planKey(row.plan),
       emailVerified: !!row.email_verified_at,
       title: row.title,
       firstName: row.first_name,

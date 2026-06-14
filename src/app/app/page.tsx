@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { loadBrandProfile, assessBrand } from "@/lib/brand-profile";
+import { getPlanUsage } from "@/lib/plan";
 import { agentAvatarSrc } from "@/lib/agent";
 import { ButtonLink } from "../_components/ui";
 import { LocalTime } from "@/app/_components/local-time";
@@ -75,6 +76,11 @@ export default async function DashboardPage() {
   const seeds = seedsRes.rows;
   const posts = postsRes.rows;
   const brand = assessBrand(profile);
+  const usage = await getPlanUsage(user.id, user.plan);
+  const usedPct = Math.min(
+    100,
+    Math.round((usage.used / Math.max(1, usage.limit)) * 100),
+  );
 
   return (
     <div className="page page--pad">
@@ -191,6 +197,65 @@ export default async function DashboardPage() {
             >
               {brand.verdict}
             </p>
+          </div>
+        </section>
+
+        {/* 1b — Plan & monthly usage */}
+        <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "var(--s-3)",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <h2 className="card-heading" style={{ margin: 0 }}>
+                {usage.plan.name} plan
+              </h2>
+              <p className="card-sub" style={{ marginTop: 4 }}>
+                <strong style={{ color: "var(--ink-1)" }}>
+                  {usage.used} of {usage.limit}
+                </strong>{" "}
+                posts generated this month
+                {usage.atLimit
+                  ? " — you've used your full allowance."
+                  : `, ${usage.remaining} left.`}{" "}
+                Resets on the 1st.
+              </p>
+            </div>
+            <ButtonLink
+              href="/pricing"
+              variant={usage.atLimit ? "dark" : "ghost"}
+              iconRight="arrow"
+            >
+              {usage.atLimit ? "Upgrade for more" : "View plans"}
+            </ButtonLink>
+          </div>
+
+          <div
+            style={{
+              marginTop: "var(--s-4)",
+              height: 8,
+              borderRadius: 999,
+              background: "var(--surface-sunken)",
+              border: "1px solid var(--hairline)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${usedPct}%`,
+                height: "100%",
+                background: usage.atLimit
+                  ? "var(--danger-500)"
+                  : usedPct >= 80
+                    ? "var(--warn-500)"
+                    : "var(--volt-300)",
+              }}
+            />
           </div>
         </section>
 
