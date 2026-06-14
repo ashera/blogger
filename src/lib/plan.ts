@@ -8,7 +8,7 @@ export { PLANS, planKey };
 /**
  * Posts a user has generated in the current calendar month. This is the
  * durable billing meter: each *successful* post generation is a row in
- * blog_generation_attempts (status='ok'). Unlike rate_events (which is
+ * blog_generation_attempts (status='success'). Unlike rate_events (which is
  * pruned after a couple of days for burst-limiting), attempts persist, so
  * counting them gives an accurate monthly total that resets on the 1st.
  */
@@ -20,7 +20,7 @@ export async function monthlyPostsUsed(userId: string): Promise<number> {
          JOIN blog_instances i ON i.id = a.instance_id
          JOIN blog_seeds s     ON s.id = i.seed_id
         WHERE s.user_id = $1::bigint
-          AND a.status = 'ok'
+          AND a.status = 'success'
           AND a.created_at >= date_trunc('month', NOW())`,
       [userId],
     );
