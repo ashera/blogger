@@ -11,6 +11,7 @@ import {
   updateBlogPost,
 } from "@/lib/actions/blog";
 import { computeContentStats, daysSince } from "@/lib/blog-stats";
+import { planFor } from "@/lib/plans";
 import { Button, Field, Input, Textarea } from "../../../../_components/ui";
 import { CopyToSiteButton } from "../../../../_components/copy-to-site";
 import { LocalTime } from "@/app/_components/local-time";
@@ -21,6 +22,8 @@ const ERRORS: Record<string, string> = {
   "invalid-title": "Title is required.",
   "invalid-slug": "Slug must be lowercase letters, numbers, and dashes only.",
   "invalid-date": "That doesn't look like a valid date and time.",
+  "upgrade-schedule":
+    "Scheduling a future publish time is on the Starter and Pro plans. Publish now, or upgrade to schedule — see Pricing.",
 };
 
 function toDatetimeLocal(s: string | null): string {
@@ -116,6 +119,10 @@ export default async function EditBlogPostPage({
   const viewStats = viewsRes.rows[0] ?? { total: "0", week: "0", month: "0" };
   const contentStats = computeContentStats(post.body_md);
   const daysPublished = daysSince(post.published_at);
+
+  const features = planFor(me.plan).features;
+  const canCopy = me.isAdmin || features.copyToSite;
+  const canSchedule = me.isAdmin || features.scheduling;
 
   const isPublished = !!post.published_at;
   const isScheduled =
@@ -242,7 +249,7 @@ export default async function EditBlogPostPage({
             >
               Preview ↗
             </Link>
-            <CopyToSiteButton postId={post.id} />
+            <CopyToSiteButton postId={post.id} locked={!canCopy} />
             <form action={toggleBlogPublished}>
               <input type="hidden" name="postId" value={post.id} />
               <Button type="submit" variant={isPublished ? "ghost" : "primary"}>
@@ -252,33 +259,59 @@ export default async function EditBlogPostPage({
           </div>
         </div>
 
-        <form
-          action={setBlogPublishedAt}
-          style={{
-            display: "flex",
-            gap: "var(--s-3)",
-            flexWrap: "wrap",
-            alignItems: "flex-end",
-            paddingTop: "var(--s-3)",
-            borderTop: "1px solid var(--hairline)",
-          }}
-        >
-          <input type="hidden" name="postId" value={post.id} />
-          <Field
-            label="Or schedule for a specific time"
-            htmlFor="published_at"
+        {canSchedule ? (
+          <form
+            action={setBlogPublishedAt}
+            style={{
+              display: "flex",
+              gap: "var(--s-3)",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              paddingTop: "var(--s-3)",
+              borderTop: "1px solid var(--hairline)",
+            }}
           >
-            <Input
-              id="published_at"
-              name="published_at"
-              type="datetime-local"
-              defaultValue={toDatetimeLocal(post.published_at)}
-            />
-          </Field>
-          <Button type="submit" variant="dark">
-            Save schedule
-          </Button>
-        </form>
+            <input type="hidden" name="postId" value={post.id} />
+            <Field
+              label="Or schedule for a specific time"
+              htmlFor="published_at"
+            >
+              <Input
+                id="published_at"
+                name="published_at"
+                type="datetime-local"
+                defaultValue={toDatetimeLocal(post.published_at)}
+              />
+            </Field>
+            <Button type="submit" variant="dark">
+              Save schedule
+            </Button>
+          </form>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              gap: "var(--s-3)",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingTop: "var(--s-3)",
+              borderTop: "1px solid var(--hairline)",
+            }}
+          >
+            <p
+              className="card-sub"
+              style={{ margin: 0, maxWidth: "46ch" }}
+            >
+              📅 Scheduling a future publish time is on the{" "}
+              <strong>Starter</strong> and <strong>Pro</strong> plans. You can
+              still publish now anytime.
+            </p>
+            <Link href="/pricing" className="btn --ghost --sm">
+              See plans →
+            </Link>
+          </div>
+        )}
       </section>
 
       <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>

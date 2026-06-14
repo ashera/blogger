@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { renderMarkdown } from "@/lib/blog";
 import { escapeHtml, getShareBaseUrl } from "@/lib/email";
+import { planFor } from "@/lib/plans";
 
 /**
  * Content for the "copy to your website" feature, in the three formats the
@@ -51,6 +52,14 @@ export async function getPostExport(
   // Only the author (or an admin) may export a post.
   if (post.author_id !== me.id && !me.isAdmin) {
     return { ok: false, error: "You don't have access to this post." };
+  }
+  // Paid feature: copying to your own site. Admins are exempt.
+  if (!me.isAdmin && !planFor(me.plan).features.copyToSite) {
+    return {
+      ok: false,
+      error:
+        "Copying posts to your own website is on the Starter and Pro plans. Upgrade to unlock it.",
+    };
   }
 
   const base = getShareBaseUrl().replace(/\/+$/, "");

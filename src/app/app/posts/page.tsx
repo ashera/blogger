@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { computeContentStats } from "@/lib/blog-stats";
+import { planFor } from "@/lib/plans";
 import { ButtonLink } from "../../_components/ui";
 import { CopyToSiteButton } from "../../_components/copy-to-site";
 import { LocalTime } from "@/app/_components/local-time";
@@ -86,6 +87,7 @@ export default async function MyPostsPage() {
   const rows = r.rows;
   const drafts = rows.filter((r) => r.published_at == null).length;
   const published = rows.length - drafts;
+  const canCopy = me.isAdmin || planFor(me.plan).features.copyToSite;
 
   return (
     <div className="page admin-page" style={{ maxWidth: 960 }}>
@@ -208,6 +210,7 @@ export default async function MyPostsPage() {
                   postId={p.id}
                   triggerLabel="Copy"
                   triggerClassName="btn --ghost --sm"
+                  locked={!canCopy}
                 />
                 <Link
                   href={`/app/posts/${p.id}/edit`}

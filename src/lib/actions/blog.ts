@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { query, withTransaction } from "@/lib/db";
 import { getCurrentUser, requireUser } from "@/lib/auth";
 import { slugify } from "@/lib/blog";
+import { planFor } from "@/lib/plans";
 
 const POSTS = "/app/posts";
 
@@ -154,6 +155,17 @@ export async function setBlogPublishedAt(formData: FormData): Promise<void> {
     const parsed = new Date(raw);
     if (!Number.isNaN(parsed.getTime())) publishedAt = parsed;
     else redirect(`${POSTS}/${id}/edit?error=invalid-date`);
+  }
+
+  // Scheduling a *future* publish time is a paid feature. Publishing now
+  // (via the toggle, or a past/current time here) stays open to everyone.
+  if (
+    publishedAt &&
+    publishedAt.getTime() > Date.now() &&
+    !me.isAdmin &&
+    !planFor(me.plan).features.scheduling
+  ) {
+    redirect(`${POSTS}/${id}/edit?error=upgrade-schedule`);
   }
 
   await query(

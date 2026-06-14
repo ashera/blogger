@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import { getPostExport, type PostExport } from "@/lib/actions/blog-export";
 import { Modal } from "./modal";
@@ -20,11 +21,15 @@ export function CopyToSiteButton({
   triggerLabel = "Copy to site",
   triggerClassName = "btn --ghost",
   triggerStyle,
+  locked = false,
 }: {
   postId: string;
   triggerLabel?: string;
   triggerClassName?: string;
   triggerStyle?: CSSProperties;
+  /** When true the user's plan doesn't include this feature — show an
+   *  upgrade prompt instead of the export formats. */
+  locked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
@@ -34,6 +39,7 @@ export function CopyToSiteButton({
 
   async function openDialog() {
     setOpen(true);
+    if (locked) return;
     if (status === "ready" || status === "loading") return;
     setStatus("loading");
     setError("");
@@ -96,8 +102,13 @@ export function CopyToSiteButton({
         onClick={openDialog}
         className={triggerClassName}
         style={triggerStyle}
+        title={
+          locked
+            ? "Copying to your own site is a paid feature"
+            : "Copy this post to your own website"
+        }
       >
-        {triggerLabel}
+        {locked ? `${triggerLabel} 🔒` : triggerLabel}
       </button>
 
       <Modal open={open} onClose={closeDialog} maxWidth={540}>
@@ -113,6 +124,43 @@ export function CopyToSiteButton({
           >
             Copy to your website
           </h2>
+
+          {locked ? (
+            <>
+              <p
+                style={{
+                  color: "var(--ink-2)",
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  margin: "0 0 var(--s-5)",
+                }}
+              >
+                Copying your posts out as rich text, HTML, or Markdown to paste
+                into your own site is on the{" "}
+                <strong>Starter</strong> and <strong>Pro</strong> plans. Upgrade
+                to publish BlogSeeder posts anywhere.
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "var(--s-3)",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={closeDialog}
+                  className="btn --ghost --sm"
+                >
+                  Not now
+                </button>
+                <Link href="/pricing" className="btn --primary --sm">
+                  See plans
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
           <p
             style={{
               color: "var(--ink-3)",
@@ -197,6 +245,8 @@ export function CopyToSiteButton({
               Close
             </button>
           </div>
+            </>
+          )}
         </div>
       </Modal>
     </>
