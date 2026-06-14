@@ -115,6 +115,10 @@ export default async function SeedsPage({
           No seeds yet. Create your first one above.
         </p>
       ) : (
+        <>
+        <h2 className="card-heading" style={{ margin: "0 0 var(--s-3)" }}>
+          Existing Seedlings
+        </h2>
         <ul
           style={{
             listStyle: "none",
@@ -183,6 +187,7 @@ export default async function SeedsPage({
             </li>
           ))}
         </ul>
+        </>
       )}
     </div>
   );
