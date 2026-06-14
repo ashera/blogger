@@ -146,9 +146,22 @@ export default async function Home() {
             }}
           >
             {user ? (
-              <ButtonLink href="/app/seeds" variant="primary" size="lg" iconRight="arrow">
-                Seed a Blog Post
-              </ButtonLink>
+              <>
+                <ButtonLink href="/app/seeds" variant="primary" size="lg" iconRight="arrow">
+                  Seed a Blog Post
+                </ButtonLink>
+                <Link
+                  href="/app/seeds"
+                  className="btn --lg"
+                  style={{
+                    background: "transparent",
+                    color: "#fff",
+                    border: "1px solid rgba(255,255,255,0.55)",
+                  }}
+                >
+                  View Existing Seedlings
+                </Link>
+              </>
             ) : (
               <ButtonLink href="/register" variant="primary" size="lg" iconRight="arrow">
                 Start generating
