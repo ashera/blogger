@@ -2,11 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import {
-  loadBrandProfile,
-  assessBrand,
-  type FieldStatus,
-} from "@/lib/brand-profile";
+import { loadBrandProfile, assessBrand } from "@/lib/brand-profile";
+import { agentAvatarSrc } from "@/lib/agent";
 import { ButtonLink } from "../_components/ui";
 import { LocalTime } from "@/app/_components/local-time";
 
@@ -22,23 +19,6 @@ const STEP_LABEL: Record<string, string> = {
   done: "Done",
 };
 
-
-// ---------------------------------------------------------------------------
-// Brand-profile completeness — calculation lives in @/lib/brand-profile
-// (assessBrand) so the dashboard and the home-page hero meter stay in sync.
-// Only the status → styling map is UI-local.
-// ---------------------------------------------------------------------------
-
-const STATUS_META: Record<
-  FieldStatus,
-  { label: string; tag: string; color: string }
-> = {
-  good: { label: "Good", tag: "users-tag --ok", color: "var(--ink-3)" },
-  brief: { label: "Too brief", tag: "users-tag --susp", color: "var(--warn-700)" },
-  missing: { label: "Missing", tag: "users-tag --susp", color: "var(--danger-700)" },
-};
-
-// ---------------------------------------------------------------------------
 
 type SeedRow = {
   id: string;
@@ -112,7 +92,7 @@ export default async function DashboardPage() {
           Welcome, {user.firstName || user.email.split("@")[0]}
         </h1>
 
-        {/* 1 — Brand profile + completeness */}
+        {/* 1 — Blogging agent (training) */}
         <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>
           <div
             style={{
@@ -120,26 +100,44 @@ export default async function DashboardPage() {
               justifyContent: "space-between",
               gap: "var(--s-3)",
               flexWrap: "wrap",
-              alignItems: "flex-start",
+              alignItems: "center",
             }}
           >
-            <div style={{ maxWidth: "52ch" }}>
-              <h2 className="card-heading" style={{ margin: 0 }}>
-                Brand profile
-              </h2>
-              <p className="card-sub" style={{ marginTop: 4 }}>
-                Your editorial identity — voice, audience, point of view, and
-                things to avoid. Every post is generated through it, so the more
-                complete it is, the more the writing sounds like you instead of
-                generic AI.
-              </p>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--s-3)",
+                minWidth: 0,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={agentAvatarSrc(user.id)}
+                alt=""
+                width={56}
+                height={56}
+                style={{ borderRadius: 14, display: "block", flex: "none" }}
+              />
+              <div style={{ minWidth: 0 }}>
+                <h2 className="card-heading" style={{ margin: 0 }}>
+                  {profile.agentName?.trim()
+                    ? profile.agentName.trim()
+                    : "Your blogging agent"}
+                </h2>
+                <p className="card-sub" style={{ marginTop: 4, maxWidth: "48ch" }}>
+                  The persona that writes your posts. Training shapes its voice,
+                  audience, and point of view — the more trained, the more your
+                  posts sound like you.
+                </p>
+              </div>
             </div>
             <ButtonLink href="/app/brand" variant="dark" iconRight="arrow">
-              Edit brand profile
+              {brand.percent >= 100 ? "Refine training" : "Train your agent"}
             </ButtonLink>
           </div>
 
-          {/* completeness bar */}
+          {/* training meter */}
           <div style={{ marginTop: "var(--s-4)" }}>
             <div
               style={{
@@ -158,7 +156,7 @@ export default async function DashboardPage() {
                   color: "var(--ink-3)",
                 }}
               >
-                Completeness
+                Trained
               </span>
               <strong style={{ color: "var(--ink-1)" }}>{brand.percent}%</strong>
             </div>
@@ -194,49 +192,6 @@ export default async function DashboardPage() {
               {brand.verdict}
             </p>
           </div>
-
-          {/* per-field assessment */}
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: "var(--s-4) 0 0",
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-            }}
-          >
-            {brand.fields.map((f) => (
-              <li
-                key={f.label}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "auto 140px 1fr",
-                  gap: "var(--s-3)",
-                  alignItems: "start",
-                  padding: "8px 12px",
-                  background: f.status === "good" ? "var(--surface)" : "var(--surface-sunken)",
-                  border: "1px solid var(--hairline)",
-                  borderRadius: 8,
-                }}
-              >
-                <span className={STATUS_META[f.status].tag}>
-                  {STATUS_META[f.status].label}
-                </span>
-                <span style={{ fontWeight: 600, color: "var(--ink-1)" }}>
-                  {f.label}
-                </span>
-                <span
-                  style={{
-                    fontSize: "var(--t-body-s)",
-                    color: STATUS_META[f.status].color,
-                  }}
-                >
-                  {f.status === "good" ? "Looks good." : f.impact}
-                </span>
-              </li>
-            ))}
-          </ul>
         </section>
 
         {/* 2 — Blog seeds */}
