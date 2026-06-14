@@ -8,6 +8,7 @@ export function AvatarMenu({
   name,
   tierEmoji,
   tierLabel,
+  planSummary,
   children,
 }: {
   email: string;
@@ -17,6 +18,8 @@ export function AvatarMenu({
   tierEmoji?: string | null;
   /** Human label for the tier, surfaced on hover. */
   tierLabel?: string | null;
+  /** Plan + quota block rendered at the top of the dropdown panel. */
+  planSummary?: ReactNode;
   children: ReactNode;
 }) {
   const displayName =
@@ -103,6 +106,7 @@ export function AvatarMenu({
             <span style={{ fontSize: "1em", lineHeight: 1 }}>{tierEmoji}</span>
           )}
         </div>
+        {planSummary}
         {children}
       </div>
     </div>

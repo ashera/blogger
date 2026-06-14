@@ -474,6 +474,94 @@ h1, h2, h3, h4,
   }
 }
 
+/* Plan + remaining-quota pill (desktop menubar). Mirrors the avatar
+   toggle so the two read as a set; the meter + accent shift with usage. */
+.plan-pill {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  background: var(--btn-neutral-bg);
+  color: var(--btn-neutral-fg);
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--dur);
+}
+.plan-pill:hover { background: var(--btn-neutral-bg-hover); }
+.plan-pill__sep { opacity: 0.5; }
+.plan-pill__count { font-variant-numeric: tabular-nums; opacity: 0.85; }
+.plan-pill__meter {
+  width: 30px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--btn-neutral-fg) 22%, transparent);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.plan-pill__fill { display: block; height: 100%; background: var(--volt-300); }
+.plan-pill--warn .plan-pill__fill { background: var(--warn-500); }
+.plan-pill--limit { background: var(--danger-500); }
+.plan-pill--limit:hover { background: var(--danger-500); filter: brightness(1.05); }
+.plan-pill--limit,
+.plan-pill--limit .plan-pill__sep { color: white; opacity: 1; }
+.plan-pill--limit .plan-pill__cta { font-weight: 700; }
+.plan-pill--limit .plan-pill__meter {
+  background: color-mix(in oklab, white 30%, transparent);
+}
+.plan-pill--limit .plan-pill__fill { background: white; }
+@media (max-width: 760px) { .plan-pill { display: none; } }
+
+/* Plan/usage block at the top of the avatar dropdown (and the hamburger
+   panel on mobile). */
+.avatar-plan {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 2px;
+}
+.avatar-plan__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.avatar-plan__meter {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+.avatar-plan__fill { display: block; height: 100%; background: var(--volt-300); }
+.avatar-plan--warn .avatar-plan__fill { background: var(--warn-500); }
+.avatar-plan--limit .avatar-plan__fill { background: var(--danger-500); }
+.avatar-plan__line {
+  margin-top: 7px;
+  font-size: var(--t-body-s);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.avatar-plan__line strong { color: var(--ink-1); }
+/* Override the generic panel-link styling for the accent CTA. */
+.avatar-menu-panel .avatar-plan__cta {
+  display: inline-block;
+  width: auto;
+  padding: 7px 0 0;
+  margin-top: 0;
+  color: var(--volt-700);
+  font-weight: 700;
+}
+.avatar-menu-panel .avatar-plan__cta:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
 /* =========================================================
    BUTTONS
    ========================================================= */

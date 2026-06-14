@@ -3,9 +3,11 @@ import { logout } from "@/lib/actions/auth";
 import { endImpersonation } from "@/lib/actions/impersonation";
 import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getPlanUsage } from "@/lib/plan";
 import { ButtonLink } from "./ui";
 import { MobileMenu } from "./mobile-menu";
 import { AvatarMenu } from "./avatar-menu";
+import { PlanPill, PlanSummary } from "./plan-pill";
 import { ThemeToggle } from "./theme-toggle";
 import { BrandLogo } from "./logo";
 
@@ -20,6 +22,13 @@ async function getDbOk(): Promise<boolean> {
 
 export async function AuthNav() {
   const [user, dbOk] = await Promise.all([getCurrentUser(), getDbOk()]);
+  const usage = user ? await getPlanUsage(user.id, user.plan) : null;
+  // Quota resets at the start of next month (UTC, matching the DB's
+  // date_trunc('month', NOW()) used to count usage).
+  const now = new Date();
+  const resetIso = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+  ).toISOString();
 
   return (
     <>
@@ -95,12 +104,18 @@ export async function AuthNav() {
 
             <div className="actions">
               <ThemeToggle />
+              {user && usage && <PlanPill usage={usage} />}
               {user ? (
                 <AvatarMenu
                   email={user.email}
                   name={
                     [user.firstName, user.surname].filter(Boolean).join(" ") ||
                     null
+                  }
+                  planSummary={
+                    usage ? (
+                      <PlanSummary usage={usage} resetIso={resetIso} />
+                    ) : null
                   }
                 >
                   <Link href="/app">Dashboard</Link>
