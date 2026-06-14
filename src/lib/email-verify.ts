@@ -38,22 +38,22 @@ export async function dispatchVerificationEmail(
 
     await sendEmail({
       to: email,
-      subject: "Verify your blogger email",
+      subject: "Verify your BlogSeeder email",
       html: emailLayout({
         preheader: "Confirm your email to finish setup.",
         heading: "Verify your email",
         body: `
-          <p>Welcome to blogger. Click the button below to confirm <strong>${escapeHtml(email)}</strong> belongs to you. The link expires in 24 hours.</p>
+          <p>Welcome to BlogSeeder. Click the button below to confirm <strong>${escapeHtml(email)}</strong> belongs to you. The link expires in 24 hours.</p>
           <p style="margin:24px 0;">
             <a href="${url}" style="display:inline-block;background:#1c1816;color:#ffffff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;">Verify email</a>
           </p>
           <p style="font-size:13px;color:#7a7470;">Or paste this link into your browser:<br>
             <span style="word-break:break-all;">${escapeHtml(url)}</span>
           </p>
-          <p style="font-size:13px;color:#7a7470;">If you didn't sign up for blogger, you can ignore this message.</p>
+          <p style="font-size:13px;color:#7a7470;">If you didn't sign up for BlogSeeder, you can ignore this message.</p>
         `,
       }),
-      text: `Verify your blogger email by visiting: ${url}\n\nThe link expires in 24 hours.`,
+      text: `Verify your BlogSeeder email by visiting: ${url}\n\nThe link expires in 24 hours.`,
     });
   } catch (e) {
     // eslint-disable-next-line no-console

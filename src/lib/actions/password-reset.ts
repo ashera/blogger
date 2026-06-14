@@ -92,7 +92,7 @@ export async function requestPasswordReset(formData: FormData): Promise<void> {
       const baseUrl = await getEmailBaseUrl();
       const url = `${baseUrl}/reset/${token}`;
       const body = `
-        <p>Someone (hopefully you) asked to reset the password for the blogger account at <strong>${escapeHtml(email)}</strong>.</p>
+        <p>Someone (hopefully you) asked to reset the password for the BlogSeeder account at <strong>${escapeHtml(email)}</strong>.</p>
         <p>Click the button to set a new password. The link expires in 1 hour and can only be used once.</p>
         <p style="margin:24px 0;">
           <a href="${url}" style="display:inline-block;background:#1c1816;color:#ffffff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;">Reset password</a>
@@ -105,9 +105,9 @@ export async function requestPasswordReset(formData: FormData): Promise<void> {
 
       await sendEmail({
         to: email,
-        subject: "Reset your blogger password",
+        subject: "Reset your BlogSeeder password",
         html: emailLayout({
-          preheader: "Reset your blogger password",
+          preheader: "Reset your BlogSeeder password",
           heading: "Reset your password",
           body,
         }),
