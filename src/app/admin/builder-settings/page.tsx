@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import {
@@ -8,6 +9,11 @@ import {
   saveBlogBuilderSettings,
   resetBlogBuilderSettings,
 } from "@/lib/actions/blog-builder-settings";
+import {
+  loadRateLimits,
+  RATE_ACTIONS,
+  RATE_ACTION_LABEL,
+} from "@/lib/rate-limit";
 import { Button, Field, Input } from "../../_components/ui";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +26,7 @@ export default async function BlogBuilderBudgetsPage({
   await requireAdmin();
   const sp = await searchParams;
   const settings = await loadBlogBuilderSettings();
+  const limits = await loadRateLimits();
 
   return (
     <div className="page admin-page" style={{ maxWidth: 880 }}>
@@ -123,6 +130,75 @@ export default async function BlogBuilderBudgetsPage({
               required
             />
           </Field>
+        </section>
+
+        <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>
+          <h2 className="card-heading">Rate limits (per user)</h2>
+          <p className="card-sub">
+            How many of each metered call a single user may make. Stops anyone
+            running up excessive AI / image calls. A short burst cap (per
+            minute) plus a daily cap.
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 120px 120px",
+              gap: "var(--s-3)",
+              alignItems: "center",
+              marginTop: "var(--s-3)",
+            }}
+          >
+            <span />
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--ink-3)",
+              }}
+            >
+              Per minute
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--ink-3)",
+              }}
+            >
+              Per day
+            </span>
+            {RATE_ACTIONS.map((a) => (
+              <Fragment key={a}>
+                <label htmlFor={`rl_${a}_min`} style={{ fontWeight: 600, color: "var(--ink-1)" }}>
+                  {RATE_ACTION_LABEL[a]}
+                </label>
+                <Input
+                  id={`rl_${a}_min`}
+                  name={`rl_${a}_min`}
+                  type="number"
+                  min={1}
+                  max={240}
+                  step={1}
+                  defaultValue={String(limits[a].perMinute)}
+                  required
+                />
+                <Input
+                  id={`rl_${a}_day`}
+                  name={`rl_${a}_day`}
+                  type="number"
+                  min={1}
+                  max={100000}
+                  step={1}
+                  defaultValue={String(limits[a].perDay)}
+                  required
+                />
+              </Fragment>
+            ))}
+          </div>
         </section>
 
         <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>

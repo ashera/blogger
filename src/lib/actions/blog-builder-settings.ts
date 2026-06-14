@@ -8,6 +8,13 @@ import {
   updateBlogBuilderSettings,
   type BlogBuilderSettings,
 } from "@/lib/blog-builder-settings";
+import {
+  RATE_ACTIONS,
+  DEFAULT_LIMITS,
+  saveRateLimits,
+  type Limit,
+  type RateAction,
+} from "@/lib/rate-limit";
 
 const PAGE_PATH = "/admin/builder-settings";
 
@@ -55,6 +62,28 @@ export async function saveBlogBuilderSettings(
   };
 
   await updateBlogBuilderSettings(next);
+
+  const limits = {} as Record<RateAction, Limit>;
+  for (const a of RATE_ACTIONS) {
+    limits[a] = {
+      perMinute: parseIntField(
+        formData,
+        `rl_${a}_min`,
+        1,
+        240,
+        DEFAULT_LIMITS[a].perMinute,
+      ),
+      perDay: parseIntField(
+        formData,
+        `rl_${a}_day`,
+        1,
+        100000,
+        DEFAULT_LIMITS[a].perDay,
+      ),
+    };
+  }
+  await saveRateLimits(limits);
+
   revalidatePath(PAGE_PATH);
   redirect(`${PAGE_PATH}?saved=1`);
 }
@@ -62,6 +91,7 @@ export async function saveBlogBuilderSettings(
 export async function resetBlogBuilderSettings(): Promise<void> {
   await requireAdmin();
   await updateBlogBuilderSettings(DEFAULT_BLOG_BUILDER_SETTINGS);
+  await saveRateLimits(DEFAULT_LIMITS);
   revalidatePath(PAGE_PATH);
   redirect(`${PAGE_PATH}?reset=1`);
 }

@@ -288,6 +288,12 @@ CREATE TABLE IF NOT EXISTS blog_builder_settings (
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Admin-tunable per-user rate limits (per metered action), as JSON:
+-- { "cluster": { "perMinute": 4, "perDay": 60 }, ... }. NULL → code defaults.
+-- See src/lib/rate-limit.ts.
+ALTER TABLE blog_builder_settings
+  ADD COLUMN IF NOT EXISTS rate_limits JSONB;
+
 -- The old editorial "reference budgets" (voice/humour/opinions/stats/stories)
 -- were retired with the file-based references; generation now draws its
 -- editorial inputs from the per-user brand_profiles table. Drop them if an

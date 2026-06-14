@@ -11,15 +11,72 @@ import { query } from "@/lib/db";
  */
 export type RateAction = "cluster" | "serp" | "post" | "brand" | "image";
 
-type Limit = { perMinute: number; perDay: number };
+export type Limit = { perMinute: number; perDay: number };
 
-const LIMITS: Record<RateAction, Limit> = {
+export const RATE_ACTIONS: RateAction[] = [
+  "cluster",
+  "serp",
+  "post",
+  "brand",
+  "image",
+];
+
+/** Human labels for the admin UI. */
+export const RATE_ACTION_LABEL: Record<RateAction, string> = {
+  cluster: "Keyword cluster",
+  serp: "SERP analysis",
+  post: "Post generation",
+  brand: "Brand-profile generation",
+  image: "Image search",
+};
+
+export const DEFAULT_LIMITS: Record<RateAction, Limit> = {
   cluster: { perMinute: 4, perDay: 60 },
   serp: { perMinute: 4, perDay: 60 },
   post: { perMinute: 3, perDay: 40 },
   brand: { perMinute: 3, perDay: 30 },
   image: { perMinute: 20, perDay: 400 },
 };
+
+/** Load the configured limits (admin overrides merged over the defaults). */
+export async function loadRateLimits(): Promise<Record<RateAction, Limit>> {
+  try {
+    const r = await query<{ rate_limits: Partial<Record<RateAction, Limit>> | null }>(
+      `SELECT rate_limits FROM blog_builder_settings WHERE id = 1 LIMIT 1`,
+    );
+    const stored = r.rows[0]?.rate_limits ?? null;
+    if (!stored) return DEFAULT_LIMITS;
+    const out = {} as Record<RateAction, Limit>;
+    for (const a of RATE_ACTIONS) {
+      const s = stored[a];
+      out[a] = {
+        perMinute:
+          typeof s?.perMinute === "number" && s.perMinute > 0
+            ? Math.floor(s.perMinute)
+            : DEFAULT_LIMITS[a].perMinute,
+        perDay:
+          typeof s?.perDay === "number" && s.perDay > 0
+            ? Math.floor(s.perDay)
+            : DEFAULT_LIMITS[a].perDay,
+      };
+    }
+    return out;
+  } catch {
+    return DEFAULT_LIMITS;
+  }
+}
+
+/** Persist admin-edited limits (upserts the single settings row). */
+export async function saveRateLimits(
+  limits: Record<RateAction, Limit>,
+): Promise<void> {
+  await query(
+    `INSERT INTO blog_builder_settings (id, rate_limits, updated_at)
+     VALUES (1, $1::jsonb, NOW())
+     ON CONFLICT (id) DO UPDATE SET rate_limits = EXCLUDED.rate_limits, updated_at = NOW()`,
+    [JSON.stringify(limits)],
+  );
+}
 
 export type RateResult = { ok: true } | { ok: false; message: string };
 
@@ -31,7 +88,7 @@ export async function enforceRateLimit(
   userId: string,
   action: RateAction,
 ): Promise<RateResult> {
-  const lim = LIMITS[action];
+  const lim = (await loadRateLimits())[action];
   try {
     const r = await query<{ minute: string; day: string }>(
       `SELECT
