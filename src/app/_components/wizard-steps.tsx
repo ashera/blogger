@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { getCurrentUser } from "@/lib/auth";
+import { loadBrandProfile } from "@/lib/brand-profile";
+import { agentAvatarSrc } from "@/lib/agent";
 
 // Wizard step order mirrors STEP_ORDER in blog-builder.ts. "done" is the
 // terminal state once at least one instance has been generated.
@@ -30,7 +33,7 @@ function stepHref(seedId: string, key: WizardStepKey): string {
  * persisted wizard_step (the furthest step unlocked); steps at or before it
  * are navigable, later ones are locked.
  */
-export function WizardShell({
+export async function WizardShell({
   seedId,
   title,
   current,
@@ -46,18 +49,52 @@ export function WizardShell({
   const reachedIdx = Math.max(0, STEP_ORDER.indexOf(reached));
   const currentNumber = STEPS.findIndex((s) => s.key === current) + 1;
 
+  // Keep the blogging agent present through the whole seeding flow.
+  const me = await getCurrentUser();
+  const profile = me ? await loadBrandProfile(me.id) : null;
+  const agentName = profile?.agentName?.trim();
+  const agentTrained = Boolean(profile?.voice?.trim() || agentName);
+
   return (
     <div className="page admin-page" style={{ maxWidth: 880 }}>
       <Link href="/app/seeds" className="back-link">
         ← All seeds
       </Link>
 
-      <header className="admin-header">
-        <p className="eyebrow">
-          Seed wizard · Step {currentNumber} of {STEPS.length}
-        </p>
-        <h1>{title}</h1>
-      </header>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--s-3)",
+          margin: "var(--s-2) 0 var(--s-5)",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={agentAvatarSrc(me?.id ?? null)}
+          alt=""
+          width={48}
+          height={48}
+          style={{ borderRadius: 12, display: "block", flex: "none" }}
+          title={agentName ? `${agentName}, your blogging agent` : "Your blogging agent"}
+        />
+        <header className="admin-header" style={{ margin: 0 }}>
+          <p className="eyebrow">
+            Seed wizard · Step {currentNumber} of {STEPS.length} ·{" "}
+            {agentName ? `with ${agentName}` : "with your agent"}
+            {!agentTrained && (
+              <>
+                {" "}
+                ·{" "}
+                <Link href="/app/brand" style={{ color: "var(--volt-700)" }}>
+                  train your agent
+                </Link>
+              </>
+            )}
+          </p>
+          <h1>{title}</h1>
+        </header>
+      </div>
 
       <ol
         style={{
