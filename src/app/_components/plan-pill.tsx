@@ -34,7 +34,9 @@ export function PlanPill({ usage }: { usage: PlanUsage }) {
       className={`plan-pill plan-pill--${level}`}
       title={`${usage.plan.name} plan — ${usage.used} of ${usage.limit} posts used this month`}
     >
-      <span className="plan-pill__name">{usage.plan.name}</span>
+      <span className="plan-pill__name">
+        {usage.plan.pillLabel ?? usage.plan.name}
+      </span>
       <span className="plan-pill__sep" aria-hidden>
         ·
       </span>

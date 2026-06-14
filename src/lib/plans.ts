@@ -15,6 +15,8 @@ export type PlanKey = "free" | "starter" | "pro";
 export type Plan = {
   key: PlanKey;
   name: string;
+  /** Short label for the menubar quota pill. Falls back to `name`. */
+  pillLabel?: string;
   /** Display price, e.g. "$0" or "$15/mo". */
   priceLabel: string;
   /** One-line positioning. */
@@ -38,6 +40,7 @@ export const PLANS: Record<PlanKey, Plan> = {
   free: {
     key: "free",
     name: "Free",
+    pillLabel: "Free Tier",
     priceLabel: "$0",
     blurb: "Try your blogging agent and publish a few posts.",
     monthlyPosts: 3,
