@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { createSeed, deleteSeed } from "@/lib/actions/blog-builder";
 import { Button, Field, Input } from "../../_components/ui";
 import { SubmitButton } from "../../_components/submit-button";
+import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Blog seeds" };
@@ -29,17 +30,6 @@ type SeedRow = {
   instance_count: number;
 };
 
-function formatDate(s: string): string {
-  try {
-    return new Date(s).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return s;
-  }
-}
 
 export default async function SeedsPage({
   searchParams,
@@ -171,7 +161,7 @@ export default async function SeedsPage({
                   {STEP_LABEL[s.wizard_step] ?? s.wizard_step} ·{" "}
                   {s.keyword_count} keywords · {s.instance_count}{" "}
                   {s.instance_count === 1 ? "instance" : "instances"} · created{" "}
-                  {formatDate(s.created_at)}
+                  <LocalTime iso={s.created_at} dateOnly />
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

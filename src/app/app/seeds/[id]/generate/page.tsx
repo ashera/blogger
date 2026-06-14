@@ -7,6 +7,7 @@ import {
   generateSeedInstance,
 } from "@/lib/actions/blog-builder";
 import { GeneratePostDialog } from "../../../../_components/generate-post-dialog";
+import { LocalTime } from "@/app/_components/local-time";
 import {
   WizardShell,
   WizardNotice,
@@ -42,20 +43,6 @@ type InstanceRow = {
   last_error: string | null;
 };
 
-function formatDate(s: string | null): string {
-  if (!s) return "—";
-  try {
-    return new Date(s).toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return s;
-  }
-}
 
 export default async function GenerateStepPage({
   params,
@@ -320,7 +307,7 @@ export default async function GenerateStepPage({
                         {inst.angle ? `Angle: ${inst.angle} · ` : ""}
                         {inst.attempt_count}{" "}
                         {inst.attempt_count === 1 ? "attempt" : "attempts"} ·
-                        created {formatDate(inst.created_at)}
+                        created <LocalTime iso={inst.created_at} />
                       </div>
                       {failed && inst.last_error && (
                         <p

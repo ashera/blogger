@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { clearSerpAnalysis, runSerpAnalysis } from "@/lib/actions/blog-builder";
 import { Button } from "../../../../_components/ui";
 import { SubmitButton } from "../../../../_components/submit-button";
+import { LocalTime } from "@/app/_components/local-time";
 import {
   WizardShell,
   WizardNotice,
@@ -40,20 +41,6 @@ type SeedRow = {
   serp_analyzed_at: string | null;
 };
 
-function formatDate(s: string | null): string {
-  if (!s) return "—";
-  try {
-    return new Date(s).toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return s;
-  }
-}
 
 const mono = {
   fontFamily: "var(--font-mono)",
@@ -124,9 +111,14 @@ export default async function SerpStepPage({
               Search Google for the primary keyword (“{primaryPhrase}”), fetch
               the top 3 organic results, and analyze their format, length, and
               topics.
-              {seed.serp_analyzed_at
-                ? ` Last run ${formatDate(seed.serp_analyzed_at)}.`
-                : " Not run yet."}
+              {seed.serp_analyzed_at ? (
+                <>
+                  {" "}
+                  Last run <LocalTime iso={seed.serp_analyzed_at} />.
+                </>
+              ) : (
+                " Not run yet."
+              )}
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>

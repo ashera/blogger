@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Users — Admin" };
@@ -22,17 +23,6 @@ function fullName(r: Row): string {
   return parts.length > 0 ? parts.join(" ") : "—";
 }
 
-function formatDate(s: string): string {
-  try {
-    return new Date(s).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return s;
-  }
-}
 
 async function fetchUsers(): Promise<Row[]> {
   try {
@@ -102,7 +92,7 @@ export default async function AdminUsersPage() {
               </div>
               <div>{fullName(u)}</div>
               <div>{u.post_count}</div>
-              <div className="users-date">{formatDate(u.created_at)}</div>
+              <div className="users-date"><LocalTime iso={u.created_at} dateOnly /></div>
               <div>
                 {u.suspended_at ? (
                   <span className="users-tag --susp">Suspended</span>

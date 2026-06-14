@@ -6,6 +6,7 @@ import {
   updateMaintenanceMode,
 } from "@/lib/actions/site-settings";
 import { Button, Field, Input } from "../../_components/ui";
+import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
 
@@ -19,19 +20,13 @@ const MAINTENANCE_MESSAGES: Record<string, { ok: boolean; text: string }> = {
   },
 };
 
-function formatMaintenanceAt(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString("en-AU", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
+const MAINTENANCE_AT_OPTS: Intl.DateTimeFormatOptions = {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "numeric",
+  minute: "2-digit",
+};
 
 export default async function SiteSettingsPage({
   searchParams,
@@ -242,11 +237,19 @@ export default async function SiteSettingsPage({
               letterSpacing: "-0.01em",
             }}
           >
-            {maintenanceState === "active"
-              ? "Maintenance is ACTIVE"
-              : maintenanceState === "countdown"
-                ? `Countdown — starts at ${formatMaintenanceAt(settings.maintenanceAt!)}`
-                : "Off"}
+            {maintenanceState === "active" ? (
+              "Maintenance is ACTIVE"
+            ) : maintenanceState === "countdown" ? (
+              <>
+                Countdown — starts at{" "}
+                <LocalTime
+                  iso={settings.maintenanceAt}
+                  options={MAINTENANCE_AT_OPTS}
+                />
+              </>
+            ) : (
+              "Off"
+            )}
           </div>
           {maintenanceState === "countdown" && (
             <p

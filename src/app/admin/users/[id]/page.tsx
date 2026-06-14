@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { LocalTime } from "@/app/_components/local-time";
 import {
   updateUserAsAdmin,
   toggleAdminRole,
@@ -84,7 +85,7 @@ export default async function AdminUserDetailPage({
         <p className="eyebrow">Admin · User</p>
         <h1>{u.email}</h1>
         <p className="sub">
-          Joined {new Date(u.created_at).toLocaleDateString("en-US")} ·{" "}
+          Joined <LocalTime iso={u.created_at} dateOnly /> ·{" "}
           {u.post_count} posts ·{" "}
           {u.is_admin ? "Admin" : "Member"} ·{" "}
           {u.suspended_at ? "Suspended" : "Active"} ·{" "}

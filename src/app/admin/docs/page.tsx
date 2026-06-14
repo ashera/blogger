@@ -3,6 +3,7 @@ import path from "path";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { renderMarkdown } from "@/lib/blog";
+import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Project documentation — Admin" };
@@ -29,19 +30,13 @@ async function loadReadme(): Promise<{ ok: true; html: string; mtime: string } |
   }
 }
 
-function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString("en-AU", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
+const MTIME_OPTS: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+};
 
 export default async function AdminDocsPage() {
   await requireAdmin();
@@ -74,7 +69,8 @@ export default async function AdminDocsPage() {
               marginBottom: "var(--s-5)",
             }}
           >
-            File last modified: {formatTime(result.mtime)}
+            File last modified:{" "}
+            <LocalTime iso={result.mtime} options={MTIME_OPTS} />
           </div>
           <article
             className="prose"

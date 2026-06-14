@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { query } from "@/lib/db";
 import { getBaseUrl } from "@/lib/email";
+import { LocalTime } from "../../../_components/local-time";
 
 // Static-rendered with revalidation. Tag pages drift slowly (only
 // affected by tag-edit + post-publish events). Hour fallback is fine.
@@ -88,17 +89,6 @@ function authorLabel(p: PostRow): string {
   return "blogger";
 }
 
-function formatDate(s: string): string {
-  try {
-    return new Date(s).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return s;
-  }
-}
 
 export async function generateMetadata({
   params,
@@ -228,7 +218,7 @@ export default async function BlogTagPage({
                     className="eyebrow"
                     style={{ margin: 0, color: "var(--ink-3)" }}
                   >
-                    {formatDate(p.published_at)} · {authorLabel(p)}
+                    <LocalTime iso={p.published_at} dateOnly /> · {authorLabel(p)}
                   </p>
                   <h2
                     style={{

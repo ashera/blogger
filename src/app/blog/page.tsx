@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { query } from "@/lib/db";
 import { getBaseUrl } from "@/lib/email";
+import { LocalTime } from "../_components/local-time";
 
 // Static-rendered with revalidation. Blog admin actions call
 // revalidatePath('/blog') on every publish/update/delete/tag change,
@@ -116,17 +117,6 @@ function authorLabel(p: PostRow): string {
   return "blogger";
 }
 
-function formatDate(s: string): string {
-  try {
-    return new Date(s).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return s;
-  }
-}
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
@@ -275,7 +265,7 @@ export default async function BlogIndexPage({
                     className="eyebrow"
                     style={{ margin: 0, color: "var(--ink-3)" }}
                   >
-                    {formatDate(p.published_at)} · {authorLabel(p)}
+                    <LocalTime iso={p.published_at} dateOnly /> · {authorLabel(p)}
                   </p>
                   <h2
                     style={{

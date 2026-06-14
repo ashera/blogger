@@ -8,6 +8,7 @@ import {
   type FieldStatus,
 } from "@/lib/brand-profile";
 import { ButtonLink } from "../_components/ui";
+import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard" };
@@ -21,18 +22,6 @@ const STEP_LABEL: Record<string, string> = {
   done: "Done",
 };
 
-function formatDate(s: string | null): string {
-  if (!s) return "—";
-  try {
-    return new Date(s).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return s;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Brand-profile completeness — calculation lives in @/lib/brand-profile
@@ -271,7 +260,7 @@ export default async function DashboardPage() {
                 <td>{STEP_LABEL[s.wizard_step] ?? s.wizard_step}</td>
                 <td>{s.keyword_count}</td>
                 <td>{s.instance_count}</td>
-                <td>{formatDate(s.created_at)}</td>
+                <td><LocalTime iso={s.created_at} dateOnly /></td>
               </tr>
             ))}
           </DashTable>
@@ -317,7 +306,7 @@ export default async function DashboardPage() {
                     </span>
                   </td>
                   <td>{published ? p.views : "—"}</td>
-                  <td>{formatDate(p.created_at)}</td>
+                  <td><LocalTime iso={p.created_at} dateOnly /></td>
                 </tr>
               );
             })}

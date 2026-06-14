@@ -10,19 +10,15 @@ import {
   deleteCapturedEmail,
 } from "@/lib/actions/admin-emails";
 import { Button } from "../../_components/ui";
+import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Captured Emails — Admin" };
 
-function fmtWhen(iso: string): string {
-  return new Date(iso).toLocaleString("en-AU", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
+const WHEN_OPTS: Intl.DateTimeFormatOptions = {
+  dateStyle: "medium",
+  timeStyle: "medium",
+};
 
 export default async function CapturedEmailsPage({
   searchParams,
@@ -140,7 +136,7 @@ export default async function CapturedEmailsPage({
                         {m.to_email}
                       </div>
                       <div style={{ fontSize: 11, color: "var(--ink-4)" }}>
-                        {fmtWhen(m.created_at)}
+                        <LocalTime iso={m.created_at} options={WHEN_OPTS} />
                       </div>
                     </Link>
                   </li>
@@ -168,7 +164,8 @@ export default async function CapturedEmailsPage({
                       {selected.subject}
                     </h2>
                     <p className="card-sub" style={{ margin: "2px 0 0" }}>
-                      To {selected.to_email} · {fmtWhen(selected.created_at)}
+                      To {selected.to_email} ·{" "}
+                      <LocalTime iso={selected.created_at} options={WHEN_OPTS} />
                     </p>
                   </div>
                   <form action={deleteCapturedEmail}>

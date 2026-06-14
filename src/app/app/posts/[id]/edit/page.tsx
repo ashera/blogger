@@ -13,6 +13,7 @@ import {
 import { computeContentStats, daysSince } from "@/lib/blog-stats";
 import { Button, Field, Input, Textarea } from "../../../../_components/ui";
 import { CopyToSiteButton } from "../../../../_components/copy-to-site";
+import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
 
@@ -52,20 +53,6 @@ type PostRow = {
   updated_at: string;
 };
 
-function formatDate(s: string | null): string {
-  if (!s) return "—";
-  try {
-    return new Date(s).toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return s;
-  }
-}
 
 export default async function EditBlogPostPage({
   params,
@@ -167,18 +154,18 @@ export default async function EditBlogPostPage({
           {isScheduled ? (
             <>
               <span className="users-tag --susp">Scheduled</span> Goes live{" "}
-              {formatDate(post.published_at)}
+              <LocalTime iso={post.published_at} />
             </>
           ) : isPublished ? (
             <>
               <span className="users-tag --ok">Published</span>{" "}
-              {formatDate(post.published_at)} ·{" "}
+              <LocalTime iso={post.published_at} /> ·{" "}
               <Link href={`/blog/${post.slug}`}>View on site</Link>
             </>
           ) : (
             <>
               <span className="users-tag --susp">Draft</span> Last edited{" "}
-              {formatDate(post.updated_at)}
+              <LocalTime iso={post.updated_at} />
             </>
           )}
         </p>

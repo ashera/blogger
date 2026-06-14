@@ -8,6 +8,7 @@ import {
 } from "@/lib/error-log";
 import { clearLogs, deleteLogEntry } from "@/lib/actions/admin-logs";
 import { Button } from "../../_components/ui";
+import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Log Management — Admin" };
@@ -29,15 +30,10 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const SOURCES = ["anthropic", "pexels", "resend", "system"];
 
-function fmtWhen(iso: string): string {
-  return new Date(iso).toLocaleString("en-AU", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
+const WHEN_OPTS: Intl.DateTimeFormatOptions = {
+  dateStyle: "medium",
+  timeStyle: "medium",
+};
 
 function asLevel(v: string | undefined): LogLevel | undefined {
   return v === "error" || v === "warn" || v === "info" ? v : undefined;
@@ -234,7 +230,7 @@ export default async function LogManagementPage({
                         </span>
                       )}
                       <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                        {fmtWhen(e.created_at)}
+                        <LocalTime iso={e.created_at} options={WHEN_OPTS} />
                       </span>
                       {e.duration_ms != null && (
                         <span style={{ fontSize: 12, color: "var(--ink-4)" }}>

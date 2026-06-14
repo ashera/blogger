@@ -5,6 +5,7 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
 import { renderMarkdown, stripMarkdown } from "@/lib/blog";
+import { LocalTime } from "../../_components/local-time";
 
 // Static-rendered with revalidation. The blog admin actions call
 // revalidatePath('/blog/{slug}') on update/publish so the post is
@@ -78,17 +79,6 @@ function authorLabel(p: PostRow): string {
   return "blogger";
 }
 
-function formatDate(s: string): string {
-  try {
-    return new Date(s).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return s;
-  }
-}
 
 export async function generateMetadata({
   params,
@@ -220,9 +210,15 @@ export default async function BlogPostPage({
             className="form-error"
             style={{ marginTop: "var(--s-4)", marginBottom: 0 }}
           >
-            {post.published_at
-              ? `Scheduled — goes live ${formatDate(post.published_at)}. Only admins see this preview.`
-              : "Draft — only admins see this. Publish from the admin console."}
+            {post.published_at ? (
+              <>
+                Scheduled — goes live{" "}
+                <LocalTime iso={post.published_at} dateOnly />. Only admins see
+                this preview.
+              </>
+            ) : (
+              "Draft — only admins see this. Publish from the admin console."
+            )}
           </p>
         )}
 
@@ -239,9 +235,14 @@ export default async function BlogPostPage({
           <div className="blog-banner-scrim" aria-hidden />
           <div className="blog-banner-content">
             <p className="blog-banner-eyebrow">
-              {post.published_at
-                ? `${formatDate(post.published_at)} · ${authorLabel(post)}`
-                : `Draft · ${authorLabel(post)}`}
+              {post.published_at ? (
+                <>
+                  <LocalTime iso={post.published_at} dateOnly /> ·{" "}
+                  {authorLabel(post)}
+                </>
+              ) : (
+                `Draft · ${authorLabel(post)}`
+              )}
             </p>
             <h1 className="blog-banner-title">{post.title}</h1>
             {post.excerpt && (
