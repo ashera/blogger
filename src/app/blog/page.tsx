@@ -2,13 +2,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { query } from "@/lib/db";
 import { getBaseUrl } from "@/lib/email";
+import { getCurrentUser } from "@/lib/auth";
 import { LocalTime } from "../_components/local-time";
 
-// Static-rendered with revalidation. Blog admin actions call
-// revalidatePath('/blog') on every publish/update/delete/tag change,
-// so changes appear within a few seconds for admins. The hour-long
-// fallback covers any actions we forget to wire revalidations into.
-export const revalidate = 3600;
+// Auth-aware: a logged-in user sees only their own published posts ("My
+// Blogs"); anonymous visitors see the public feed of all published posts.
+// Reads the auth cookie, so it must render dynamically.
+export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 10;
 
@@ -27,7 +27,7 @@ type PostRow = {
 
 type TagRow = { slug: string; label: string; n: number };
 
-async function fetchTags(): Promise<TagRow[]> {
+async function fetchTags(authorId: string | null): Promise<TagRow[]> {
   try {
     const r = await query<{ slug: string; label: string; n: string }>(
       `SELECT t.slug, t.label, COUNT(pt.post_id)::text AS n
@@ -37,9 +37,11 @@ async function fetchTags(): Promise<TagRow[]> {
                 ON p.id = pt.post_id
                AND p.published_at IS NOT NULL
                AND p.published_at <= NOW()
+               ${authorId ? "AND p.author_id = $1::bigint" : ""}
         GROUP BY t.id, t.slug, t.label, t.sort_order
        HAVING COUNT(p.id) > 0
         ORDER BY t.sort_order, t.label`,
+      authorId ? [authorId] : [],
     );
     return r.rows.map((row) => ({
       slug: row.slug,
@@ -53,8 +55,11 @@ async function fetchTags(): Promise<TagRow[]> {
 
 async function fetchPosts(
   page: number,
+  authorId: string | null,
 ): Promise<{ rows: PostRow[]; total: number }> {
   const offset = (page - 1) * PAGE_SIZE;
+  const authorFilter = authorId ? "AND p.author_id = $3::bigint" : "";
+  const countFilter = authorId ? "AND author_id = $1::bigint" : "";
   try {
     const [postsRes, countRes] = await Promise.all([
       query<PostRow>(
@@ -82,13 +87,16 @@ async function fetchPosts(
            LEFT JOIN users u ON u.id = p.author_id
           WHERE p.published_at IS NOT NULL
             AND p.published_at <= NOW()
+            ${authorFilter}
           ORDER BY p.published_at DESC
           LIMIT $1 OFFSET $2`,
-        [PAGE_SIZE, offset],
+        authorId ? [PAGE_SIZE, offset, authorId] : [PAGE_SIZE, offset],
       ),
       query<{ n: string }>(
         `SELECT COUNT(*)::text AS n FROM blog_posts
-          WHERE published_at IS NOT NULL AND published_at <= NOW()`,
+          WHERE published_at IS NOT NULL AND published_at <= NOW()
+            ${countFilter}`,
+        authorId ? [authorId] : [],
       ),
     ]);
     return {
@@ -121,17 +129,17 @@ function authorLabel(p: PostRow): string {
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
   const description =
-    "Articles and guides generated with blogger — AI blog generation on any subject.";
+    "Articles and guides generated with BlogSeeder — AI blog generation on any subject.";
   return {
-    title: "blogger blog",
+    title: "BlogSeeder blog",
     description,
     alternates: { canonical: `${baseUrl}/blog` },
     openGraph: {
       type: "website",
       url: `${baseUrl}/blog`,
-      title: "blogger blog",
+      title: "BlogSeeder blog",
       description,
-      siteName: "blogger",
+      siteName: "BlogSeeder",
     },
   };
 }
@@ -143,16 +151,20 @@ export default async function BlogIndexPage({
 }) {
   const { page: pageRaw } = await searchParams;
   const page = Math.max(1, Number.parseInt(pageRaw ?? "1", 10) || 1);
+  const user = await getCurrentUser();
+  const authorId = user?.id ?? null;
   const [{ rows, total }, tags] = await Promise.all([
-    fetchPosts(page),
-    fetchTags(),
+    fetchPosts(page, authorId),
+    fetchTags(authorId),
   ]);
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="page page--pad">
       <main style={{ maxWidth: 1024, margin: "0 auto" }}>
-        <p className="eyebrow">The blogger blog</p>
+        <p className="eyebrow">
+          {authorId ? "Your published posts" : "The BlogSeeder blog"}
+        </p>
         <h1
           style={{
             fontFamily: "var(--font-display)",
@@ -163,7 +175,7 @@ export default async function BlogIndexPage({
             lineHeight: 1.05,
           }}
         >
-          From the blog
+          {authorId ? "My Blogs" : "From the blog"}
         </h1>
         <p
           style={{
@@ -172,7 +184,9 @@ export default async function BlogIndexPage({
             maxWidth: 60 + "ch",
           }}
         >
-          Articles and guides, generated and published with blogger.
+          {authorId
+            ? "Everything you've published with BlogSeeder."
+            : "Articles and guides, generated and published with BlogSeeder."}
         </p>
 
         {tags.length > 0 && (
@@ -211,8 +225,18 @@ export default async function BlogIndexPage({
 
         {rows.length === 0 ? (
           <div className="empty-state">
-            <h3>No posts yet</h3>
-            <p style={{ margin: 0 }}>Check back soon.</p>
+            <h3>{authorId ? "You haven't published anything yet" : "No posts yet"}</h3>
+            <p style={{ margin: 0 }}>
+              {authorId ? (
+                <>
+                  Generate a post from a{" "}
+                  <Link href="/app/seeds">seed</Link>, then publish it to see it
+                  here.
+                </>
+              ) : (
+                "Check back soon."
+              )}
+            </p>
           </div>
         ) : (
           <ul
