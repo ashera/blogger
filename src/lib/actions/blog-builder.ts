@@ -1381,5 +1381,8 @@ export async function deleteSeedInstance(formData: FormData): Promise<void> {
   );
 
   revalidatePath(seedGenerate(seedId));
+  // The menubar plan pill (in the root layout) shows monthly post usage,
+  // which just changed — refresh the shared layout so it updates too.
+  revalidatePath("/", "layout");
   redirect(`${seedGenerate(seedId)}?saved=1`);
 }
