@@ -9,7 +9,11 @@ export async function Footer() {
         <span>BlogSeeder · AI blog generation</span>
         <span className="meta">
           <Link href="/blog" style={{ color: "inherit" }}>
-            Blog
+            My Blogs
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/faq" style={{ color: "inherit" }}>
+            FAQ
           </Link>
           <span aria-hidden>·</span>
           <Link href="/privacy" style={{ color: "inherit" }}>

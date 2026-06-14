@@ -82,7 +82,8 @@ export async function AuthNav() {
         <MobileMenu>
           <div className="topbar-menu-panel">
             <nav>
-              <Link href="/blog">Blog</Link>
+              <Link href="/blog">My Blogs</Link>
+              <Link href="/faq">FAQ</Link>
               {user && <Link href="/app">Dashboard</Link>}
               {user?.isAdmin && (
                 <Link href="/admin" className="nav-admin">
