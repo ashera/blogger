@@ -28,6 +28,8 @@ type SeedRow = {
   created_at: string;
   keyword_count: number;
   instance_count: number;
+  image_url: string | null;
+  image_alt: string | null;
 };
 
 
@@ -48,8 +50,17 @@ export default async function SeedsPage({
             (SELECT COUNT(*) FROM blog_keywords k WHERE k.seed_id = s.id)::int
               AS keyword_count,
             (SELECT COUNT(*) FROM blog_instances i WHERE i.seed_id = s.id)::int
-              AS instance_count
+              AS instance_count,
+            img.url_large AS image_url,
+            img.alt       AS image_alt
        FROM blog_seeds s
+       LEFT JOIN LATERAL (
+         SELECT url_large, alt
+           FROM blog_seed_images im
+          WHERE im.seed_id = s.id
+          ORDER BY im.include_in_post DESC, im.slot ASC
+          LIMIT 1
+       ) img ON TRUE
       WHERE s.user_id = $1::bigint
       ORDER BY s.created_at DESC`,
     [me.id],
@@ -79,12 +90,14 @@ export default async function SeedsPage({
         </div>
       )}
 
-      <section className="form-card" style={{ marginBottom: "var(--s-6)" }}>
-        <h2 className="card-heading">New seed</h2>
-        <p className="card-sub">
-          What subject do you want to write about? You can refine the exact
-          keywords in the next step.
-        </p>
+      <section
+        className="form-card"
+        style={{
+          marginBottom: "var(--s-6)",
+          padding: "var(--s-4)",
+          gap: "var(--s-2)",
+        }}
+      >
         <form
           action={createSeed}
           style={{
@@ -94,7 +107,11 @@ export default async function SeedsPage({
             flexWrap: "wrap",
           }}
         >
-          <Field label="Seed subject" htmlFor="title">
+          <Field
+            label="New seed subject"
+            htmlFor="title"
+            help="The subject to write about — refine the exact keywords next."
+          >
             <Input
               id="title"
               name="title"
@@ -134,8 +151,8 @@ export default async function SeedsPage({
               key={s.id}
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr auto",
-                gap: "var(--s-3)",
+                gridTemplateColumns: "auto 1fr auto",
+                gap: "var(--s-4)",
                 alignItems: "center",
                 padding: "var(--s-3) var(--s-4)",
                 background: "var(--surface)",
@@ -143,6 +160,43 @@ export default async function SeedsPage({
                 borderRadius: 10,
               }}
             >
+              <Link
+                href={`/app/seeds/${s.id}`}
+                aria-hidden
+                tabIndex={-1}
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 10,
+                  flex: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  background: "var(--surface-sunken)",
+                  border: "1px solid var(--hairline)",
+                }}
+              >
+                {s.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={s.image_url}
+                    alt={s.image_alt ?? ""}
+                    width={64}
+                    height={64}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 26, lineHeight: 1 }} aria-hidden>
+                    🌱
+                  </span>
+                )}
+              </Link>
               <div style={{ minWidth: 0 }}>
                 <Link
                   href={`/app/seeds/${s.id}`}
