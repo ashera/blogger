@@ -65,35 +65,99 @@ export async function WizardShell({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "var(--s-3)",
+          justifyContent: "space-between",
+          gap: "var(--s-4)",
+          flexWrap: "wrap",
           margin: "var(--s-2) 0 var(--s-5)",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={agentAvatarSrc(me?.id ?? null)}
-          alt=""
-          width={48}
-          height={48}
-          style={{ borderRadius: 12, display: "block", flex: "none" }}
-          title={agentName ? `${agentName}, your blogging agent` : "Your blogging agent"}
-        />
-        <header className="admin-header" style={{ margin: 0 }}>
-          <p className="eyebrow">
-            Seed wizard · Step {currentNumber} of {STEPS.length} ·{" "}
-            {agentName ? `with ${agentName}` : "with your agent"}
-            {!agentTrained && (
-              <>
-                {" "}
-                ·{" "}
-                <Link href="/app/brand" style={{ color: "var(--volt-700)" }}>
-                  train your agent
-                </Link>
-              </>
-            )}
-          </p>
-          <h1>{title}</h1>
-        </header>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--s-3)",
+            minWidth: 0,
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={agentAvatarSrc(me?.id ?? null)}
+            alt=""
+            width={48}
+            height={48}
+            style={{ borderRadius: 12, display: "block", flex: "none" }}
+            title={agentName ? `${agentName}, your blogging agent` : "Your blogging agent"}
+          />
+          <header className="admin-header" style={{ margin: 0 }}>
+            <p className="eyebrow">
+              Seed wizard ·{" "}
+              {agentName ? `with ${agentName}` : "with your agent"}
+              {!agentTrained && (
+                <>
+                  {" "}
+                  ·{" "}
+                  <Link href="/app/brand" style={{ color: "var(--volt-700)" }}>
+                    train your agent
+                  </Link>
+                </>
+              )}
+            </p>
+            <h1>{title}</h1>
+          </header>
+        </div>
+
+        {/* Prominent step badge — on edit it's instantly obvious which
+            step the wizard opened on. */}
+        <div
+          aria-label={`Step ${currentNumber} of ${STEPS.length}: ${
+            STEPS[currentNumber - 1]?.label ?? ""
+          }`}
+          style={{
+            flex: "none",
+            textAlign: "center",
+            padding: "6px 18px",
+            borderRadius: 14,
+            background: "var(--volt-50)",
+            border: "1px solid var(--volt-300)",
+            lineHeight: 1,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "var(--volt-700)",
+              marginBottom: 4,
+            }}
+          >
+            Step
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              color: "var(--ink-1)",
+            }}
+          >
+            <span style={{ fontSize: 28 }}>{currentNumber}</span>
+            <span style={{ fontSize: 15, color: "var(--ink-3)" }}>
+              {" "}
+              / {STEPS.length}
+            </span>
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--ink-2)",
+              marginTop: 3,
+            }}
+          >
+            {STEPS[currentNumber - 1]?.label}
+          </div>
+        </div>
       </div>
 
       <ol
