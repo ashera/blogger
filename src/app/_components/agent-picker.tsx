@@ -7,6 +7,23 @@ function snippet(text: string | null | undefined, max = 150): string {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
+/** Crude markdown strip — only a fallback for agents trained before bios. */
+function stripMarkdownish(s: string): string {
+  return s
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]*`/g, " ")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_~>#]+/g, " ");
+}
+
+/** The agent's bio: the generated one, or a cleaned voice snippet as fallback. */
+function agentBio(voice: string | null, bio: string | null): string {
+  if (bio?.trim()) return snippet(bio, 200);
+  if (voice?.trim()) return snippet(stripMarkdownish(voice));
+  return "";
+}
+
 /**
  * Rich agent selector: a radio-card per agent showing the avatar, name, default
  * badge, and a mini bio — a snippet of its voice and the audience it targets —
@@ -27,7 +44,7 @@ export function AgentPicker({
     <div className="agent-picker">
       {agents.map((a) => {
         const display = a.agentName?.trim() || "Untitled agent";
-        const voice = snippet(a.voice);
+        const bio = agentBio(a.voice, a.bio);
         const audience = snippet(a.audience);
         return (
           <label key={a.id} className="agent-option">
@@ -53,10 +70,10 @@ export function AgentPicker({
                 )}
               </span>
               <span
-                className={`agent-option__meta${voice ? "" : " agent-option__meta--empty"}`}
+                className={`agent-option__meta${bio ? "" : " agent-option__meta--empty"}`}
               >
-                <span className="agent-option__meta-label">Voice</span>{" "}
-                {voice || "No voice trained yet"}
+                <span className="agent-option__meta-label">Bio</span>{" "}
+                {bio || "No bio yet — retrain to add one"}
               </span>
               <span
                 className={`agent-option__meta${audience ? "" : " agent-option__meta--empty"}`}

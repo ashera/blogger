@@ -25,6 +25,7 @@ const LIMITS: Record<keyof BrandProfile, number> = {
   stories: 8000,
   avoid: 2000,
   agentName: 80,
+  bio: 240,
 };
 
 function clamp(v: string | null, max: number): string | null {
@@ -66,6 +67,7 @@ export async function saveAgentDraft(
     stories: clamp(values.stories, LIMITS.stories),
     avoid: clamp(values.avoid, LIMITS.avoid),
     agentName: clamp(values.agentName, LIMITS.agentName),
+    bio: clamp(values.bio, LIMITS.bio),
   };
 
   try {
@@ -102,8 +104,13 @@ const SUBMIT_TOOL = {
         description:
           "A short, human first name (optionally with surname) for the writing persona you invented in the voice section — this becomes the name of the user's blogging 'agent'. E.g. 'Sal', 'Marcus Webb', 'Priya'.",
       },
+      bio: {
+        type: "string",
+        description:
+          "A clean one-line bio of this persona in UNDER 20 words. Plain prose — NO markdown, headings, or bullet points. Capture who they are and their writing vibe so a user instantly 'gets' them. E.g. 'Marcus Webb — a wry inner-city renter who writes punchy, opinionated guides for time-poor 20-somethings.'",
+      },
     },
-    required: [...GENERATED_SECTIONS, "agentName"],
+    required: [...GENERATED_SECTIONS, "agentName", "bio"],
   },
 } as const;
 
@@ -117,7 +124,7 @@ export async function generateBrandSections(args: {
   siteUrl: string;
   audience: string;
 }): Promise<
-  | { ok: true; sections: GeneratedSections; agentName: string }
+  | { ok: true; sections: GeneratedSections; agentName: string; bio: string }
   | { ok: false; error: string }
 > {
   const me = await getCurrentUser();
@@ -148,6 +155,8 @@ Two sections need care:
 - STORIES & ANECDOTES: do NOT fabricate specific anecdotes as if real. Write short PROMPTS for the kinds of true stories this brand could tell, for the user to complete.
 
 Keep every section tight and skimmable — a few short paragraphs or a bullet list each, no padding or repetition.
+
+Also write a "bio": a clean one-line description of the writing persona in UNDER 20 words, plain prose with NO markdown — who they are and their vibe — so a user instantly connects with them.
 
 Call submit_brand_profile exactly once with all sections. No free text.`;
 
@@ -210,5 +219,9 @@ ${sectionBlocks}`;
     typeof input.agentName === "string"
       ? input.agentName.trim().slice(0, LIMITS.agentName)
       : "";
-  return { ok: true, sections, agentName };
+  const bio =
+    typeof input.bio === "string"
+      ? input.bio.replace(/\s+/g, " ").trim().slice(0, LIMITS.bio)
+      : "";
+  return { ok: true, sections, agentName, bio };
 }

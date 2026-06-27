@@ -27,6 +27,7 @@ type Row = {
   stories: string | null;
   avoid: string | null;
   agent_name: string | null;
+  bio: string | null;
 };
 
 /**
@@ -38,7 +39,7 @@ export async function loadBrandProfile(userId: string): Promise<BrandProfile> {
   try {
     const r = await query<Row>(
       `SELECT brand_name, site_url, audience, voice, humour, perspective,
-              stats, stories, avoid, agent_name
+              stats, stories, avoid, agent_name, bio
          FROM brand_profiles WHERE user_id = $1::bigint
         ORDER BY is_default DESC, id ASC LIMIT 1`,
       [userId],
@@ -56,6 +57,7 @@ export async function loadBrandProfile(userId: string): Promise<BrandProfile> {
       stories: row.stories,
       avoid: row.avoid,
       agentName: row.agent_name,
+      bio: row.bio,
     };
   } catch {
     return EMPTY_BRAND_PROFILE;

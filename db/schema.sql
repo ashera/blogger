@@ -345,7 +345,10 @@ ALTER TABLE brand_profiles
 ALTER TABLE brand_profiles
   ADD COLUMN IF NOT EXISTS agent_name   TEXT,
   ADD COLUMN IF NOT EXISTS avatar_index INTEGER,
-  ADD COLUMN IF NOT EXISTS is_default   BOOLEAN NOT NULL DEFAULT FALSE;
+  ADD COLUMN IF NOT EXISTS is_default   BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Short (<20 word) AI-generated persona bio, produced at training time
+  -- and reused wherever the agent is shown (e.g. the agent picker).
+  ADD COLUMN IF NOT EXISTS bio          TEXT;
 
 -- Multi-agent migration for databases created when brand_profiles had
 -- user_id as its PRIMARY KEY (one row per user). Add the surrogate id and

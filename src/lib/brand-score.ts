@@ -19,6 +19,8 @@ export type BrandProfile = {
   avoid: string | null;
   /** Editable name for the user's blogging agent (the writing persona). */
   agentName: string | null;
+  /** Short (<20 word) persona bio, generated at training time. */
+  bio: string | null;
 };
 
 export const EMPTY_BRAND_PROFILE: BrandProfile = {
@@ -32,6 +34,7 @@ export const EMPTY_BRAND_PROFILE: BrandProfile = {
   stories: null,
   avoid: null,
   agentName: null,
+  bio: null,
 };
 
 export type FieldStatus = "good" | "brief" | "missing";

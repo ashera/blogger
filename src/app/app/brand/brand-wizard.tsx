@@ -105,6 +105,7 @@ export function BrandWizard({
     stories: initial.stories ?? "",
     avoid: initial.avoid ?? "",
     agentName: initial.agentName ?? "",
+    bio: initial.bio ?? "",
   }));
   const [avatarIndex, setAvatarIndex] = useState<number | null>(
     initialAvatarIndex,
@@ -212,6 +213,8 @@ export function BrandWizard({
         ...res.sections,
         // Suggest the AI's persona name, but keep a name the user already set.
         agentName: values.agentName.trim() ? values.agentName : res.agentName,
+        // The bio is a fresh snapshot of the regenerated persona.
+        bio: res.bio || values.bio,
       };
       setGenBasics(snap);
       setSectionsEdited(false);

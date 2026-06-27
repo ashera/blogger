@@ -23,6 +23,7 @@ type Row = {
   agent_name: string | null;
   avatar_index: number | null;
   is_default: boolean;
+  bio: string | null;
 };
 
 // Fully qualified (bp.*) so these columns stay unambiguous even when the
@@ -30,7 +31,7 @@ type Row = {
 // brand_profiles AS bp.
 const SELECT_COLS = `bp.id::text AS id, bp.brand_name, bp.site_url, bp.audience,
   bp.voice, bp.humour, bp.perspective, bp.stats, bp.stories, bp.avoid,
-  bp.agent_name, bp.avatar_index, bp.is_default`;
+  bp.agent_name, bp.avatar_index, bp.is_default, bp.bio`;
 
 function toAgent(row: Row): Agent {
   return {
@@ -47,6 +48,7 @@ function toAgent(row: Row): Agent {
     agentName: row.agent_name,
     avatarIndex: row.avatar_index,
     isDefault: row.is_default,
+    bio: row.bio,
   };
 }
 
@@ -169,6 +171,7 @@ export async function updateAgent(
         avoid        = $11,
         agent_name   = $12,
         avatar_index = $13,
+        bio          = $14,
         updated_at   = NOW()
       WHERE id = $1::bigint AND user_id = $2::bigint`,
     [
@@ -185,6 +188,7 @@ export async function updateAgent(
       profile.avoid,
       profile.agentName,
       avatarIndex,
+      profile.bio,
     ],
   );
 }
