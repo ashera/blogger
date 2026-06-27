@@ -44,7 +44,7 @@ const GROUPS: Group[] = [
             <ol style={{ margin: "4px 0 0", paddingLeft: 18, lineHeight: 1.6 }}>
               <li>
                 Train your agent on the{" "}
-                <Link href="/app/brand">brand profile</Link> page.
+                <Link href="/app/agents">brand profile</Link> page.
               </li>
               <li>
                 Create a <Link href="/app/seeds">seed</Link> — the subject you
@@ -65,7 +65,7 @@ const GROUPS: Group[] = [
           <>
             You can generate straight away, but posts read generic until you
             train your agent. Spend a few minutes on your{" "}
-            <Link href="/app/brand">brand profile</Link> first — it&rsquo;s the
+            <Link href="/app/agents">brand profile</Link> first — it&rsquo;s the
             single biggest driver of how your blog sounds.
           </>
         ),
@@ -90,7 +90,7 @@ const GROUPS: Group[] = [
         q: "How do I train my agent?",
         a: (
           <>
-            On the <Link href="/app/brand">brand profile</Link>, enter your brand
+            On the <Link href="/app/agents">brand profile</Link>, enter your brand
             name, website, and audience, then let the AI draft every section for
             you. Edit each one to make it yours — the more specific you are, the
             better the writing.

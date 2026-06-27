@@ -92,6 +92,7 @@ export async function AuthNav() {
           <div className="topbar-menu-panel">
             <nav>
               <Link href="/blog">My Blogs</Link>
+              {user && <Link href="/app/agents">Agents</Link>}
               <Link href="/pricing">Pricing</Link>
               <Link href="/faq">FAQ</Link>
               {user && <Link href="/app">Dashboard</Link>}

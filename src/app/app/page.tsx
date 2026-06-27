@@ -2,9 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { loadBrandProfile, assessBrand } from "@/lib/brand-profile";
+import { assessBrand, EMPTY_BRAND_PROFILE } from "@/lib/brand-score";
+import { listAgents } from "@/lib/agents";
 import { getPlanUsage } from "@/lib/plan";
-import { agentAvatarSrc } from "@/lib/agent";
+import { agentAvatar } from "@/lib/agent";
 import { ButtonLink } from "../_components/ui";
 import { LocalTime } from "@/app/_components/local-time";
 
@@ -42,8 +43,8 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/app");
 
-  const [profile, seedsRes, postsRes] = await Promise.all([
-    loadBrandProfile(user.id),
+  const [agents, seedsRes, postsRes] = await Promise.all([
+    listAgents(user.id),
     query<SeedRow>(
       `SELECT s.id::text,
               s.title,
@@ -75,7 +76,8 @@ export default async function DashboardPage() {
   ]);
   const seeds = seedsRes.rows;
   const posts = postsRes.rows;
-  const brand = assessBrand(profile);
+  const defaultAgent = agents.find((a) => a.isDefault) ?? agents[0] ?? null;
+  const brand = assessBrand(defaultAgent ?? EMPTY_BRAND_PROFILE);
   const usage = await getPlanUsage(user.id, user.plan);
   const usedPct = Math.min(
     100,
@@ -98,7 +100,7 @@ export default async function DashboardPage() {
           Welcome, {user.firstName || user.email.split("@")[0]}
         </h1>
 
-        {/* 1 — Blogging agent (training) */}
+        {/* 1 — Your agents (the stable) */}
         <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>
           <div
             style={{
@@ -109,95 +111,142 @@ export default async function DashboardPage() {
               alignItems: "center",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--s-3)",
-                minWidth: 0,
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={agentAvatarSrc(user.id)}
-                alt=""
-                width={56}
-                height={56}
-                style={{ borderRadius: 14, display: "block", flex: "none" }}
-              />
-              <div style={{ minWidth: 0 }}>
-                <h2 className="card-heading" style={{ margin: 0 }}>
-                  {profile.agentName?.trim()
-                    ? profile.agentName.trim()
-                    : "Your blogging agent"}
-                </h2>
-                <p className="card-sub" style={{ marginTop: 4, maxWidth: "48ch" }}>
-                  The persona that writes your posts. Training shapes its voice,
-                  audience, and point of view — the more trained, the more your
-                  posts sound like you.
-                </p>
-              </div>
+            <div style={{ minWidth: 0 }}>
+              <h2 className="card-heading" style={{ margin: 0 }}>
+                Your agents
+              </h2>
+              <p className="card-sub" style={{ marginTop: 4, maxWidth: "52ch" }}>
+                Each agent is a writing persona with its own voice. Train
+                several and pick which one writes each seed.
+              </p>
             </div>
-            <ButtonLink href="/app/brand" variant="dark" iconRight="arrow">
-              {brand.percent >= 100 ? "Refine training" : "Train your agent"}
+            <ButtonLink href="/app/agents" variant="dark" iconRight="arrow">
+              Manage agents
             </ButtonLink>
           </div>
 
-          {/* training meter */}
-          <div style={{ marginTop: "var(--s-4)" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "baseline",
-                marginBottom: 6,
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "var(--ink-3)",
-                }}
-              >
-                Trained
-              </span>
-              <strong style={{ color: "var(--ink-1)" }}>{brand.percent}%</strong>
-            </div>
-            <div
-              style={{
-                height: 8,
-                borderRadius: 999,
-                background: "var(--surface-sunken)",
-                border: "1px solid var(--hairline)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${brand.percent}%`,
-                  height: "100%",
-                  background:
-                    brand.percent >= 70
-                      ? "var(--volt-300)"
-                      : brand.percent >= 40
-                        ? "var(--warn-500)"
-                        : "var(--danger-500)",
-                }}
-              />
-            </div>
+          {agents.length === 0 ? (
             <p
               style={{
-                margin: "var(--s-3) 0 0",
-                color: "var(--ink-2)",
+                margin: "var(--s-4) 0 0",
+                color: "var(--ink-3)",
                 fontSize: "var(--t-body-s)",
               }}
             >
-              {brand.verdict}
+              No agents yet.{" "}
+              <Link href="/app/agents">Create your first agent</Link> to give
+              your posts a voice.
             </p>
-          </div>
+          ) : (
+            <>
+              {/* avatar row */}
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "var(--s-3)",
+                  marginTop: "var(--s-4)",
+                }}
+              >
+                {agents.map((a) => {
+                  const pct = assessBrand(a).percent;
+                  const name = a.agentName?.trim() || "Untitled";
+                  return (
+                    <Link
+                      key={a.id}
+                      href={`/app/agents/${a.id}`}
+                      title={`${name} · Trained ${pct}%`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "4px 10px 4px 4px",
+                        borderRadius: 999,
+                        border: "1px solid var(--hairline)",
+                        background: "var(--surface-sunken)",
+                        textDecoration: "none",
+                        color: "var(--ink-1)",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={agentAvatar(a.avatarIndex, a.id)}
+                        alt=""
+                        width={28}
+                        height={28}
+                        style={{ borderRadius: 8, display: "block", flex: "none" }}
+                      />
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{name}</span>
+                      <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                        {pct}%
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* default agent training meter */}
+              {defaultAgent && (
+                <div style={{ marginTop: "var(--s-4)" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 11,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "var(--ink-3)",
+                      }}
+                    >
+                      {defaultAgent.agentName?.trim() || "Default agent"} ·
+                      trained
+                    </span>
+                    <strong style={{ color: "var(--ink-1)" }}>
+                      {brand.percent}%
+                    </strong>
+                  </div>
+                  <div
+                    style={{
+                      height: 8,
+                      borderRadius: 999,
+                      background: "var(--surface-sunken)",
+                      border: "1px solid var(--hairline)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${brand.percent}%`,
+                        height: "100%",
+                        background:
+                          brand.percent >= 70
+                            ? "var(--volt-300)"
+                            : brand.percent >= 40
+                              ? "var(--warn-500)"
+                              : "var(--danger-500)",
+                      }}
+                    />
+                  </div>
+                  <p
+                    style={{
+                      margin: "var(--s-3) 0 0",
+                      color: "var(--ink-2)",
+                      fontSize: "var(--t-body-s)",
+                    }}
+                  >
+                    {brand.verdict}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </section>
 
         {/* 1b — Plan & monthly usage */}

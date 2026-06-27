@@ -11,12 +11,16 @@ import {
   type BrandSectionKey,
 } from "@/lib/brand-sections";
 import {
-  saveBrandDraft,
+  saveAgentDraft,
   generateBrandSections,
 } from "@/lib/actions/brand-wizard";
 import { Modal } from "@/app/_components/modal";
 import { WaitingMessage } from "@/app/_components/waiting-quotes";
-import { agentAvatarSrc } from "@/lib/agent";
+import {
+  agentAvatar,
+  avatarSrcByIndex,
+  AGENT_AVATAR_COUNT,
+} from "@/lib/agent";
 
 type Values = Record<keyof BrandProfile, string>;
 
@@ -81,11 +85,13 @@ function StatusChip({ status }: { status: FieldStatus | "optional" }) {
 }
 
 export function BrandWizard({
+  agentId,
   initial,
-  avatarSeed,
+  avatarIndex: initialAvatarIndex,
 }: {
+  agentId: string;
   initial: BrandProfile;
-  avatarSeed: string;
+  avatarIndex: number | null;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<Values>(() => ({
@@ -100,6 +106,9 @@ export function BrandWizard({
     avoid: initial.avoid ?? "",
     agentName: initial.agentName ?? "",
   }));
+  const [avatarIndex, setAvatarIndex] = useState<number | null>(
+    initialAvatarIndex,
+  );
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -128,16 +137,30 @@ export function BrandWizard({
     setSectionsEdited(true);
   }
 
-  async function persist(override?: Values): Promise<boolean> {
+  async function persist(
+    override?: Values,
+    avatarOverride?: number | null,
+  ): Promise<boolean> {
     setSaving(true);
     setSaveError(null);
-    const res = await saveBrandDraft(override ?? values);
+    const res = await saveAgentDraft(
+      agentId,
+      override ?? values,
+      avatarOverride !== undefined ? avatarOverride : avatarIndex,
+    );
     setSaving(false);
     if (!res.ok) {
       setSaveError(res.error);
       return false;
     }
     return true;
+  }
+
+  function chooseAvatar(index: number) {
+    setAvatarIndex(index);
+    // Persist the avatar choice immediately (fire-and-forget) so it sticks
+    // even if the user navigates away without hitting continue.
+    void persist(undefined, index);
   }
 
   function scrollTop() {
@@ -151,7 +174,7 @@ export function BrandWizard({
   }
 
   async function finish() {
-    if (await persist()) router.push("/app");
+    if (await persist()) router.push("/app/agents");
   }
 
   const basicsChanged =
@@ -244,8 +267,8 @@ export function BrandWizard({
       style={{ paddingTop: "var(--s-4)", paddingBottom: "var(--s-3)" }}
     >
       <main style={{ maxWidth: 1040, margin: "0 auto" }}>
-        <Link href="/app" className="back-link">
-          ← Dashboard
+        <Link href="/app/agents" className="back-link">
+          ← My agents
         </Link>
 
         <header style={{ margin: "var(--s-2) 0 var(--s-3)" }}>
@@ -280,7 +303,7 @@ export function BrandWizard({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={agentAvatarSrc(avatarSeed)}
+              src={agentAvatar(avatarIndex, agentId)}
               alt=""
               width={30}
               height={30}
@@ -359,7 +382,9 @@ export function BrandWizard({
               values={values}
               setField={setField}
               hasSectionContent={hasSectionContent}
-              avatarSeed={avatarSeed}
+              agentId={agentId}
+              avatarIndex={avatarIndex}
+              onChooseAvatar={chooseAvatar}
             />
           )}
           {current.kind === "section" && (
@@ -520,12 +545,16 @@ function BasicsStep({
   values,
   setField,
   hasSectionContent,
-  avatarSeed,
+  agentId,
+  avatarIndex,
+  onChooseAvatar,
 }: {
   values: Values;
   setField: (k: keyof BrandProfile, v: string) => void;
   hasSectionContent: boolean;
-  avatarSeed: string;
+  agentId: string;
+  avatarIndex: number | null;
+  onChooseAvatar: (index: number) => void;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}>
@@ -553,7 +582,7 @@ function BasicsStep({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={agentAvatarSrc(avatarSeed)}
+          src={agentAvatar(avatarIndex, agentId)}
           alt=""
           width={52}
           height={52}
@@ -574,6 +603,58 @@ function BasicsStep({
             change it anytime.
           </span>
         </label>
+      </div>
+
+      {/* avatar picker */}
+      <div className="form-field" style={{ margin: 0 }}>
+        <span className="field-label">Choose an avatar</span>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            marginTop: 4,
+          }}
+        >
+          {Array.from({ length: AGENT_AVATAR_COUNT }, (_, i) => {
+            const selected = avatarIndex === i;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onChooseAvatar(i)}
+                aria-label={`Avatar ${i + 1}`}
+                aria-pressed={selected}
+                style={{
+                  padding: 0,
+                  borderRadius: 12,
+                  border: selected
+                    ? "2px solid var(--volt-500)"
+                    : "2px solid transparent",
+                  outline: selected ? "none" : "1px solid var(--hairline)",
+                  background: "none",
+                  cursor: "pointer",
+                  lineHeight: 0,
+                  boxShadow: selected
+                    ? "0 0 0 3px var(--volt-50)"
+                    : "none",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={avatarSrcByIndex(i)}
+                  alt=""
+                  width={44}
+                  height={44}
+                  style={{ borderRadius: 10, display: "block" }}
+                />
+              </button>
+            );
+          })}
+        </div>
+        <span className="field-help">
+          Give each agent its own face so they&rsquo;re easy to tell apart.
+        </span>
       </div>
 
       <div className="grid-2">

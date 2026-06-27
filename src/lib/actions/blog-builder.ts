@@ -62,10 +62,10 @@ import {
   type PostPromptExistingPost,
   type PostPromptBrand,
 } from "@/lib/blog-post-prompt";
-import { loadBrandProfile } from "@/lib/brand-profile";
 import { logExternalError } from "@/lib/error-log";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getPlanUsage } from "@/lib/plan";
+import { loadAgent, getDefaultAgent, loadSeedAgent } from "@/lib/agents";
 
 // ---------------------------------------------------------------------------
 // Routes + wizard helpers
@@ -128,11 +128,21 @@ export async function createSeed(formData: FormData): Promise<void> {
   const title = getString(formData, "title", TITLE_MAX);
   if (!title) redirect(`${SEEDS}?error=invalid-title`);
 
+  // Which agent writes this seed: the chosen one (if it's theirs), else the
+  // user's default. May be null if the user has no agents yet.
+  const rawAgent = String(formData.get("agentId") ?? "").trim();
+  let agentId: string | null = null;
+  if (/^\d+$/.test(rawAgent)) {
+    const chosen = await loadAgent(rawAgent, me.id);
+    if (chosen) agentId = chosen.id;
+  }
+  if (!agentId) agentId = (await getDefaultAgent(me.id))?.id ?? null;
+
   const r = await query<{ id: string }>(
-    `INSERT INTO blog_seeds (user_id, title, wizard_step, status)
-     VALUES ($1::bigint, $2, 'keywords', 'draft')
+    `INSERT INTO blog_seeds (user_id, agent_id, title, wizard_step, status)
+     VALUES ($1::bigint, $2, $3, 'keywords', 'draft')
      RETURNING id::text`,
-    [me.id, title],
+    [me.id, agentId, title],
   );
   const id = r.rows[0]!.id;
 
@@ -1096,7 +1106,8 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
           ORDER BY slot`,
         [seedId],
       ),
-      loadBrandProfile(me.id),
+      // The agent assigned to this seed writes it (falls back to default).
+      loadSeedAgent(seedId, me.id),
       // This user's recently published posts so Claude can cross-link.
       query<{ slug: string; title: string; tags: string[] }>(
         `SELECT p.slug,
@@ -1155,15 +1166,15 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
   const attemptId = attemptRes.rows[0]!.id;
 
   const brandForPrompt: PostPromptBrand = {
-    brandName: brand.brandName,
-    siteUrl: brand.siteUrl,
-    audience: brand.audience,
-    voice: brand.voice,
-    humour: brand.humour,
-    perspective: brand.perspective,
-    stats: brand.stats,
-    stories: brand.stories,
-    avoid: brand.avoid,
+    brandName: brand?.brandName ?? null,
+    siteUrl: brand?.siteUrl ?? null,
+    audience: brand?.audience ?? null,
+    voice: brand?.voice ?? null,
+    humour: brand?.humour ?? null,
+    perspective: brand?.perspective ?? null,
+    stats: brand?.stats ?? null,
+    stories: brand?.stories ?? null,
+    avoid: brand?.avoid ?? null,
   };
 
   const existingPosts: PostPromptExistingPost[] = existingPostsRes.rows.map(

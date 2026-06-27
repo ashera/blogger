@@ -40,7 +40,7 @@ export default async function BlogBuilderBudgetsPage({
         <p className="sub">
           Cap how big each AI response can be. (Editorial inputs — voice,
           audience, point of view — come from each user&rsquo;s{" "}
-          <Link href="/app/brand">brand profile</Link>, not from here.)
+          <Link href="/app/agents">brand profile</Link>, not from here.)
         </p>
       </header>
 
@@ -221,7 +221,7 @@ export default async function BlogBuilderBudgetsPage({
             </li>
             <li>
               <strong>Posts feel generic / off-voice?</strong> That&rsquo;s the{" "}
-              <Link href="/app/brand">brand profile</Link>, not these limits —
+              <Link href="/app/agents">brand profile</Link>, not these limits —
               flesh out the voice, audience, and point-of-view fields.
             </li>
           </ul>

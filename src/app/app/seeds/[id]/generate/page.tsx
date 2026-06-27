@@ -18,7 +18,7 @@ import {
   composePostUserPrompt,
   type PostPromptBrand,
 } from "@/lib/blog-post-prompt";
-import { loadBrandProfile } from "@/lib/brand-profile";
+import { loadSeedAgent } from "@/lib/agents";
 
 export const dynamic = "force-dynamic";
 
@@ -91,7 +91,7 @@ export default async function GenerateStepPage({
         ORDER BY slot`,
       [id],
     ),
-    loadBrandProfile(me.id),
+    loadSeedAgent(id, me.id),
     query<{ slug: string; title: string; tags: string[] }>(
       `SELECT p.slug, p.title,
               COALESCE(
@@ -145,15 +145,15 @@ export default async function GenerateStepPage({
   const instances = instancesRes.rows;
 
   const brand: PostPromptBrand = {
-    brandName: brandProfile.brandName,
-    siteUrl: brandProfile.siteUrl,
-    audience: brandProfile.audience,
-    voice: brandProfile.voice,
-    humour: brandProfile.humour,
-    perspective: brandProfile.perspective,
-    stats: brandProfile.stats,
-    stories: brandProfile.stories,
-    avoid: brandProfile.avoid,
+    brandName: brandProfile?.brandName ?? null,
+    siteUrl: brandProfile?.siteUrl ?? null,
+    audience: brandProfile?.audience ?? null,
+    voice: brandProfile?.voice ?? null,
+    humour: brandProfile?.humour ?? null,
+    perspective: brandProfile?.perspective ?? null,
+    stats: brandProfile?.stats ?? null,
+    stories: brandProfile?.stories ?? null,
+    avoid: brandProfile?.avoid ?? null,
   };
   const systemPrompt = composePostSystemPrompt(brand);
   const userPrompt = composePostUserPrompt({

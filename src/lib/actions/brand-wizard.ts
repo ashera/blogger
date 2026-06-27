@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
-import { updateBrandProfile } from "@/lib/brand-profile";
+import { loadAgent, updateAgent } from "@/lib/agents";
+import { AGENT_AVATAR_COUNT } from "@/lib/agent";
 import type { BrandProfile } from "@/lib/brand-score";
 import {
   BRAND_SECTIONS,
@@ -32,16 +33,27 @@ function clamp(v: string | null, max: number): string | null {
   return t.length > 0 ? t : null;
 }
 
+function clampAvatar(index: number | null): number | null {
+  if (index == null || !Number.isFinite(index)) return null;
+  const i = Math.floor(index);
+  return i >= 0 && i < AGENT_AVATAR_COUNT ? i : null;
+}
+
 /**
- * Save the whole brand profile (the wizard holds every field in state, so each
- * autosave writes them all). Returns ok/err rather than redirecting so the
- * client can keep driving the wizard.
+ * Save the whole agent profile (the wizard holds every field in state, so each
+ * autosave writes them all). Scoped to the agent's owner. Returns ok/err
+ * rather than redirecting so the client can keep driving the wizard.
  */
-export async function saveBrandDraft(
+export async function saveAgentDraft(
+  agentId: string,
   values: BrandProfile,
+  avatarIndex: number | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const me = await getCurrentUser();
   if (!me) return { ok: false, error: "You need to be signed in." };
+
+  const owned = await loadAgent(agentId, me.id);
+  if (!owned) return { ok: false, error: "Agent not found." };
 
   const next: BrandProfile = {
     brandName: clamp(values.brandName, LIMITS.brandName),
@@ -57,11 +69,12 @@ export async function saveBrandDraft(
   };
 
   try {
-    await updateBrandProfile(me.id, next);
+    await updateAgent(agentId, me.id, next, clampAvatar(avatarIndex));
   } catch {
     return { ok: false, error: "Couldn't save just now — please try again." };
   }
-  revalidatePath("/app/brand");
+  revalidatePath("/app/agents");
+  revalidatePath(`/app/agents/${agentId}`);
   revalidatePath("/app");
   revalidatePath("/");
   return { ok: true };

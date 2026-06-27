@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { createSeed, deleteSeed } from "@/lib/actions/blog-builder";
+import { listAgents } from "@/lib/agents";
+import { agentAvatar } from "@/lib/agent";
 import { Button, Field, Input } from "../../_components/ui";
 import { SubmitButton } from "../../_components/submit-button";
 import { LocalTime } from "@/app/_components/local-time";
@@ -30,6 +32,9 @@ type SeedRow = {
   instance_count: number;
   image_url: string | null;
   image_alt: string | null;
+  agent_id: string | null;
+  agent_name: string | null;
+  agent_avatar_index: number | null;
 };
 
 
@@ -52,8 +57,12 @@ export default async function SeedsPage({
             (SELECT COUNT(*) FROM blog_instances i WHERE i.seed_id = s.id)::int
               AS instance_count,
             img.url_large AS image_url,
-            img.alt       AS image_alt
+            img.alt       AS image_alt,
+            bp.id::text   AS agent_id,
+            bp.agent_name AS agent_name,
+            bp.avatar_index AS agent_avatar_index
        FROM blog_seeds s
+       LEFT JOIN brand_profiles bp ON bp.id = s.agent_id
        LEFT JOIN LATERAL (
          SELECT url_large, alt
            FROM blog_seed_images im
@@ -66,6 +75,8 @@ export default async function SeedsPage({
     [me.id],
   );
   const seeds = seedsRes.rows;
+  const agents = await listAgents(me.id);
+  const defaultAgentId = agents.find((a) => a.isDefault)?.id ?? agents[0]?.id;
 
   return (
     <div className="page admin-page" style={{ maxWidth: 880 }}>
@@ -121,10 +132,37 @@ export default async function SeedsPage({
               style={{ minWidth: 320 }}
             />
           </Field>
+          {agents.length > 0 ? (
+            <Field label="Written by" htmlFor="agentId" help="Which agent writes it.">
+              <select
+                id="agentId"
+                name="agentId"
+                className="input"
+                defaultValue={defaultAgentId}
+                style={{ minWidth: 180 }}
+              >
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {(a.agentName?.trim() || "Untitled agent") +
+                      (a.isDefault ? " (default)" : "")}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
           <SubmitButton variant="primary" pendingLabel="Creating…">
             Create seed →
           </SubmitButton>
         </form>
+        {agents.length === 0 && (
+          <p className="card-sub" style={{ margin: "var(--s-2) 0 0" }}>
+            You don&rsquo;t have any agents yet.{" "}
+            <Link href="/app/agents" style={{ color: "var(--volt-700)" }}>
+              Create an agent
+            </Link>{" "}
+            to give your posts a voice.
+          </p>
+        )}
       </section>
 
       {seeds.length === 0 ? (
@@ -220,6 +258,26 @@ export default async function SeedsPage({
                   {s.keyword_count} keywords · {s.instance_count}{" "}
                   {s.instance_count === 1 ? "instance" : "instances"} · created{" "}
                   <LocalTime iso={s.created_at} dateOnly />
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 4,
+                    fontSize: 12,
+                    color: "var(--ink-3)",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={agentAvatar(s.agent_avatar_index, s.agent_id)}
+                    alt=""
+                    width={18}
+                    height={18}
+                    style={{ borderRadius: 5, display: "block", flex: "none" }}
+                  />
+                  {s.agent_name?.trim() || "Unassigned agent"}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

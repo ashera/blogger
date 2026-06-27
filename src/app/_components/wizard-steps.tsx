@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCurrentUser } from "@/lib/auth";
-import { loadBrandProfile } from "@/lib/brand-profile";
-import { agentAvatarSrc } from "@/lib/agent";
+import { listAgents, loadSeedAgent } from "@/lib/agents";
+import { setSeedAgentAction } from "@/lib/actions/agents";
+import { agentAvatar } from "@/lib/agent";
 
 // Wizard step order mirrors STEP_ORDER in blog-builder.ts. "done" is the
 // terminal state once at least one instance has been generated.
@@ -49,11 +50,15 @@ export async function WizardShell({
   const reachedIdx = Math.max(0, STEP_ORDER.indexOf(reached));
   const currentNumber = STEPS.findIndex((s) => s.key === current) + 1;
 
-  // Keep the blogging agent present through the whole seeding flow.
+  // The agent that writes THIS seed — present through the whole flow, and
+  // reassignable here.
   const me = await getCurrentUser();
-  const profile = me ? await loadBrandProfile(me.id) : null;
-  const agentName = profile?.agentName?.trim();
-  const agentTrained = Boolean(profile?.voice?.trim() || agentName);
+  const [seedAgent, agents] = me
+    ? await Promise.all([loadSeedAgent(seedId, me.id), listAgents(me.id)])
+    : [null, []];
+  const agentName = seedAgent?.agentName?.trim();
+  const agentTrained = Boolean(seedAgent?.voice?.trim() || agentName);
+  const trainHref = seedAgent ? `/app/agents/${seedAgent.id}` : "/app/agents";
 
   return (
     <div className="page admin-page" style={{ maxWidth: 880 }}>
@@ -81,7 +86,7 @@ export async function WizardShell({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={agentAvatarSrc(me?.id ?? null)}
+            src={agentAvatar(seedAgent?.avatarIndex, seedAgent?.id)}
             alt=""
             width={48}
             height={48}
@@ -91,18 +96,50 @@ export async function WizardShell({
           <header className="admin-header" style={{ margin: 0 }}>
             <p className="eyebrow">
               Seed wizard ·{" "}
-              {agentName ? `with ${agentName}` : "with your agent"}
+              {agentName ? `written by ${agentName}` : "written by your agent"}
               {!agentTrained && (
                 <>
                   {" "}
                   ·{" "}
-                  <Link href="/app/brand" style={{ color: "var(--volt-700)" }}>
-                    train your agent
+                  <Link href={trainHref} style={{ color: "var(--volt-700)" }}>
+                    train this agent
                   </Link>
                 </>
               )}
             </p>
             <h1>{title}</h1>
+            {agents.length > 1 && seedAgent && (
+              <form
+                action={setSeedAgentAction}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: 6,
+                }}
+              >
+                <input type="hidden" name="seedId" value={seedId} />
+                <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                  Switch agent:
+                </span>
+                <select
+                  name="agentId"
+                  defaultValue={seedAgent.id}
+                  className="input"
+                  style={{ height: 30, padding: "0 8px", fontSize: 13, width: "auto" }}
+                >
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {(a.agentName?.trim() || "Untitled agent") +
+                        (a.isDefault ? " (default)" : "")}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" className="btn --ghost --sm">
+                  Apply
+                </button>
+              </form>
+            )}
           </header>
         </div>
 

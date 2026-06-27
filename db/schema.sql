@@ -312,12 +312,15 @@ INSERT INTO blog_builder_settings (id) VALUES (1)
 ON CONFLICT (id) DO NOTHING;
 
 -- =========================================================
--- Brand profiles — per-user editorial identity that drives the
--- AI prompts (replaces the old file-based voice/humour/etc.).
--- One row per user; created lazily on first save.
+-- Brand profiles — editorial identity ("agents") that drives the AI
+-- prompts. Originally one row per user; now MULTIPLE rows per user (a
+-- "stable" of agents), each with its own voice / humour / stats / avatar.
+-- Surrogate id PK; user_id is a non-unique FK. Seeds choose which agent
+-- writes them (blog_seeds.agent_id).
 -- =========================================================
 CREATE TABLE IF NOT EXISTS brand_profiles (
-  user_id     BIGINT      PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  id          BIGSERIAL   PRIMARY KEY,
+  user_id     BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   brand_name  TEXT,
   site_url    TEXT,
   audience    TEXT,
@@ -336,11 +339,56 @@ ALTER TABLE brand_profiles
   ADD COLUMN IF NOT EXISTS stats   TEXT,
   ADD COLUMN IF NOT EXISTS stories TEXT;
 
--- "Blogging agent" persona: an editable name for the writer the profile
--- trains. The avatar is auto-assigned (derived from the user id), so no
--- column is needed for it. See src/lib/agent.ts.
+-- "Blogging agent" persona: an editable name, a chosen avatar (index into
+-- the bundled avatar set; NULL falls back to a hash of the agent id), and a
+-- per-user default flag (the agent used where none is specified).
 ALTER TABLE brand_profiles
-  ADD COLUMN IF NOT EXISTS agent_name TEXT;
+  ADD COLUMN IF NOT EXISTS agent_name   TEXT,
+  ADD COLUMN IF NOT EXISTS avatar_index INTEGER,
+  ADD COLUMN IF NOT EXISTS is_default   BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Multi-agent migration for databases created when brand_profiles had
+-- user_id as its PRIMARY KEY (one row per user). Add the surrogate id and
+-- switch the PK to it so a user can keep many agents.
+ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS id BIGSERIAL;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_index i
+      JOIN pg_attribute a
+        ON a.attrelid = i.indrelid AND a.attnum = ANY (i.indkey)
+     WHERE i.indrelid = 'brand_profiles'::regclass
+       AND i.indisprimary
+       AND a.attname = 'user_id'
+  ) THEN
+    ALTER TABLE brand_profiles DROP CONSTRAINT brand_profiles_pkey;
+    ALTER TABLE brand_profiles ADD CONSTRAINT brand_profiles_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS brand_profiles_user_idx ON brand_profiles (user_id);
+
+-- Ensure every user with at least one agent has exactly one default (the
+-- lowest-id agent), without clobbering an already-chosen default.
+UPDATE brand_profiles bp SET is_default = TRUE
+ WHERE bp.id = (SELECT MIN(m.id) FROM brand_profiles m WHERE m.user_id = bp.user_id)
+   AND NOT EXISTS (
+     SELECT 1 FROM brand_profiles d
+      WHERE d.user_id = bp.user_id AND d.is_default
+   );
+
+-- Each seed is written by one of the user's agents. Chosen at creation,
+-- reassignable later; NULL falls back to the user's default agent at
+-- generation time. (Defined here, after brand_profiles, for the FK.)
+ALTER TABLE blog_seeds
+  ADD COLUMN IF NOT EXISTS agent_id BIGINT
+    REFERENCES brand_profiles(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS blog_seeds_agent_idx ON blog_seeds (agent_id);
+UPDATE blog_seeds s SET agent_id = (
+  SELECT bp.id FROM brand_profiles bp
+   WHERE bp.user_id = s.user_id
+   ORDER BY bp.is_default DESC, bp.id ASC
+   LIMIT 1
+) WHERE s.agent_id IS NULL;
 
 -- =========================================================
 -- Rate limiting: one row per metered action (AI / image calls) so a user

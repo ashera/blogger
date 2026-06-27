@@ -29,12 +29,18 @@ type Row = {
   agent_name: string | null;
 };
 
+/**
+ * The user's DEFAULT agent profile. Kept for surfaces that show a single
+ * representative agent (home hero, etc.); per-context surfaces should load a
+ * specific agent via "@/lib/agents". Returns EMPTY when the user has none.
+ */
 export async function loadBrandProfile(userId: string): Promise<BrandProfile> {
   try {
     const r = await query<Row>(
       `SELECT brand_name, site_url, audience, voice, humour, perspective,
               stats, stories, avoid, agent_name
-         FROM brand_profiles WHERE user_id = $1::bigint LIMIT 1`,
+         FROM brand_profiles WHERE user_id = $1::bigint
+        ORDER BY is_default DESC, id ASC LIMIT 1`,
       [userId],
     );
     const row = r.rows[0];
@@ -54,43 +60,6 @@ export async function loadBrandProfile(userId: string): Promise<BrandProfile> {
   } catch {
     return EMPTY_BRAND_PROFILE;
   }
-}
-
-export async function updateBrandProfile(
-  userId: string,
-  next: BrandProfile,
-): Promise<void> {
-  await query(
-    `INSERT INTO brand_profiles
-       (user_id, brand_name, site_url, audience, voice, humour, perspective,
-        stats, stories, avoid, agent_name, updated_at)
-     VALUES ($1::bigint, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
-     ON CONFLICT (user_id) DO UPDATE SET
-       brand_name  = EXCLUDED.brand_name,
-       site_url    = EXCLUDED.site_url,
-       audience    = EXCLUDED.audience,
-       voice       = EXCLUDED.voice,
-       humour      = EXCLUDED.humour,
-       perspective = EXCLUDED.perspective,
-       stats       = EXCLUDED.stats,
-       stories     = EXCLUDED.stories,
-       avoid       = EXCLUDED.avoid,
-       agent_name  = EXCLUDED.agent_name,
-       updated_at  = NOW()`,
-    [
-      userId,
-      next.brandName,
-      next.siteUrl,
-      next.audience,
-      next.voice,
-      next.humour,
-      next.perspective,
-      next.stats,
-      next.stories,
-      next.avoid,
-      next.agentName,
-    ],
-  );
 }
 
 /** True when the profile has enough signal to meaningfully shape output. */

@@ -3,8 +3,9 @@ import Link from "next/link";
 import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
-import { loadBrandProfile, brandProfileCompleteness } from "@/lib/brand-profile";
-import { agentAvatarSrc, agentDisplayName } from "@/lib/agent";
+import { brandProfileCompleteness } from "@/lib/brand-score";
+import { getDefaultAgent } from "@/lib/agents";
+import { agentAvatar, agentDisplayName } from "@/lib/agent";
 import { ButtonLink } from "./_components/ui";
 
 // 60s ISR. The page reads the current user cookie so it stays dynamic in
@@ -115,11 +116,11 @@ function brandMeterMessage(pct: number, name: string): string {
 
 export default async function Home() {
   const user = await getCurrentUser();
-  const [latestPost, profile] = await Promise.all([
+  const [latestPost, agent] = await Promise.all([
     getHeroPost(user?.id ?? null),
-    user ? loadBrandProfile(user.id) : Promise.resolve(null),
+    user ? getDefaultAgent(user.id) : Promise.resolve(null),
   ]);
-  const brandPct = profile ? brandProfileCompleteness(profile) : null;
+  const brandPct = agent ? brandProfileCompleteness(agent) : null;
 
   return (
     <div className="page">
@@ -170,12 +171,12 @@ export default async function Home() {
           </div>
         </div>
 
-        {user && brandPct !== null && (
-          <Link href="/app/brand" className="hero-brand-meter">
+        {user && agent && brandPct !== null && (
+          <Link href={`/app/agents/${agent.id}`} className="hero-brand-meter">
             <div className="row" style={{ alignItems: "center", gap: 10 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={agentAvatarSrc(user.id)}
+                src={agentAvatar(agent.avatarIndex, agent.id)}
                 alt=""
                 width={36}
                 height={36}
@@ -183,8 +184,8 @@ export default async function Home() {
               />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span className="label" style={{ display: "block" }}>
-                  {profile?.agentName?.trim()
-                    ? `Your agent · ${profile.agentName.trim()}`
+                  {agent.agentName?.trim()
+                    ? `Your agent · ${agent.agentName.trim()}`
                     : "Your blogging agent"}
                 </span>
                 <span style={{ fontSize: 12, opacity: 0.85 }}>
@@ -193,7 +194,7 @@ export default async function Home() {
               </span>
             </div>
             <span className="msg">
-              {brandMeterMessage(brandPct, agentDisplayName(profile?.agentName))} →
+              {brandMeterMessage(brandPct, agentDisplayName(agent.agentName))} →
             </span>
             <div className="bar" aria-hidden>
               <span style={{ width: `${brandPct}%` }} />
