@@ -33,8 +33,8 @@ export function AgentPicker({
             <img
               src={agentAvatar(a.avatarIndex, a.id)}
               alt=""
-              width={40}
-              height={40}
+              width={44}
+              height={44}
               className="agent-option__avatar"
             />
             <span className="agent-option__body">
@@ -47,9 +47,17 @@ export function AgentPicker({
               <span
                 className={`agent-option__aud${audience ? "" : " agent-option__aud--empty"}`}
               >
-                {audience || "No audience set yet"}
+                {audience ? (
+                  <>
+                    <span className="agent-option__aud-label">Audience:</span>{" "}
+                    {audience}
+                  </>
+                ) : (
+                  "No audience set yet"
+                )}
               </span>
             </span>
+            <span className="agent-option__check" aria-hidden />
           </label>
         );
       })}
