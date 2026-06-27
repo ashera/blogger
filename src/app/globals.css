@@ -607,7 +607,7 @@ h1, h2, h3, h4,
   display: block;
   flex: none;
 }
-.agent-option__body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.agent-option__body { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .agent-option__name {
   display: flex;
   align-items: center;
@@ -628,23 +628,31 @@ h1, h2, h3, h4,
   padding: 1px 6px;
 }
 .agent-option__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.agent-option__meta-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.agent-option__meta-value {
   font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--ink-2);
+  line-height: 1.4;
+  color: var(--ink-1);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.agent-option__meta-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+.agent-option__meta--empty .agent-option__meta-value {
+  color: var(--ink-4);
+  font-style: italic;
 }
-.agent-option__meta--empty { color: var(--ink-4); font-style: italic; }
-.agent-option__meta--empty .agent-option__meta-label { font-style: normal; }
 /* Right-hand selection indicator (custom radio that fills + checks). */
 .agent-option__check {
   flex: none;

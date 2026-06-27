@@ -72,14 +72,18 @@ export function AgentPicker({
               <span
                 className={`agent-option__meta${bio ? "" : " agent-option__meta--empty"}`}
               >
-                <span className="agent-option__meta-label">Bio</span>{" "}
-                {bio || "No bio yet — retrain to add one"}
+                <span className="agent-option__meta-label">Bio</span>
+                <span className="agent-option__meta-value">
+                  {bio || "No bio yet — retrain to add one"}
+                </span>
               </span>
               <span
                 className={`agent-option__meta${audience ? "" : " agent-option__meta--empty"}`}
               >
-                <span className="agent-option__meta-label">Audience</span>{" "}
-                {audience || "No audience set yet"}
+                <span className="agent-option__meta-label">Audience</span>
+                <span className="agent-option__meta-value">
+                  {audience || "No audience set yet"}
+                </span>
               </span>
             </span>
             <span className="agent-option__check" aria-hidden />
