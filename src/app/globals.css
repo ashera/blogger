@@ -562,6 +562,21 @@ h1, h2, h3, h4,
   text-decoration: underline;
 }
 
+/* Subtle text-button for secondary card actions (Make default / Delete). */
+.agent-card-link {
+  background: transparent;
+  border: 0;
+  padding: 2px 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  transition: color var(--dur);
+}
+.agent-card-link:hover { color: var(--ink-1); text-decoration: underline; }
+.agent-card-link.--danger:hover { color: var(--danger-700); }
+
 /* Agent picker — a clean vertical list of selectable rows: avatar, name +
    audience summary, and a radio/check indicator on the right. */
 .agent-picker {

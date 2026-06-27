@@ -121,7 +121,7 @@ export function ButtonLink({
 
   if (internal) {
     return (
-      <Link href={href} className={cls}>
+      <Link href={href} className={cls} {...rest}>
         {icon && <Icon name={icon} size="sm" />}
         {children}
         {iconRight && <Icon name={iconRight} size="sm" />}

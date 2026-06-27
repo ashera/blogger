@@ -1,28 +1,9 @@
-import { agentAvatar, type Agent } from "@/lib/agent";
-
-/** Collapse whitespace and trim to a short, single-line-ish snippet. */
-function snippet(text: string | null | undefined, max = 150): string {
-  if (!text) return "";
-  const t = text.replace(/\s+/g, " ").trim();
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
-}
-
-/** Crude markdown strip — only a fallback for agents trained before bios. */
-function stripMarkdownish(s: string): string {
-  return s
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`[^`]*`/g, " ")
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/[*_~>#]+/g, " ");
-}
-
-/** The agent's bio: the generated one, or a cleaned voice snippet as fallback. */
-function agentBio(voice: string | null, bio: string | null): string {
-  if (bio?.trim()) return snippet(bio, 200);
-  if (voice?.trim()) return snippet(stripMarkdownish(voice));
-  return "";
-}
+import {
+  agentAvatar,
+  agentBio,
+  summarizeText,
+  type Agent,
+} from "@/lib/agent";
 
 /**
  * Rich agent selector: a radio-card per agent showing the avatar, name, default
@@ -45,7 +26,7 @@ export function AgentPicker({
       {agents.map((a) => {
         const display = a.agentName?.trim() || "Untitled agent";
         const bio = agentBio(a.voice, a.bio);
-        const audience = snippet(a.audience);
+        const audience = summarizeText(a.audience);
         return (
           <label key={a.id} className="agent-option">
             <input

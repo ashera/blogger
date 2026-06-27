@@ -57,3 +57,33 @@ export function agentDisplayName(name: string | null | undefined): string {
   const n = (name ?? "").trim();
   return n.length > 0 ? n : "your agent";
 }
+
+/** Collapse whitespace and trim to a short snippet (for cards/pickers). */
+export function summarizeText(
+  text: string | null | undefined,
+  max = 150,
+): string {
+  if (!text) return "";
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
+/** Crude markdown strip — fallback for agents trained before bios existed. */
+function stripMarkdownish(s: string): string {
+  return s
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]*`/g, " ")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_~>#]+/g, " ");
+}
+
+/** The agent's bio: the generated one, or a cleaned voice snippet fallback. */
+export function agentBio(
+  voice: string | null | undefined,
+  bio: string | null | undefined,
+): string {
+  if (bio?.trim()) return summarizeText(bio, 200);
+  if (voice?.trim()) return summarizeText(stripMarkdownish(voice));
+  return "";
+}

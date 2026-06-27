@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { listAgents } from "@/lib/agents";
 import { assessBrand } from "@/lib/brand-score";
-import { agentAvatar } from "@/lib/agent";
+import { agentAvatar, agentBio, summarizeText } from "@/lib/agent";
 import {
   createAgentAction,
   deleteAgentAction,
@@ -66,13 +66,16 @@ export default async function AgentsPage({
             padding: 0,
             margin: 0,
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-            gap: "var(--s-3)",
+            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gap: "var(--s-4)",
           }}
         >
           {agents.map((a) => {
             const score = assessBrand(a);
             const name = a.agentName?.trim() || "Untitled agent";
+            const bio = agentBio(a.voice, a.bio);
+            const audience = summarizeText(a.audience, 140);
+            const canDelete = agents.length > 1;
             return (
               <li
                 key={a.id}
@@ -82,10 +85,13 @@ export default async function AgentsPage({
                   gap: "var(--s-3)",
                   padding: "var(--s-4)",
                   background: "var(--surface)",
-                  border: "1px solid var(--hairline)",
-                  borderRadius: 12,
+                  border: a.isDefault
+                    ? "1px solid var(--volt-300)"
+                    : "1px solid var(--hairline)",
+                  borderRadius: 14,
                 }}
               >
+                {/* header: avatar + name + default badge */}
                 <div
                   style={{
                     display: "flex",
@@ -98,23 +104,23 @@ export default async function AgentsPage({
                   <img
                     src={agentAvatar(a.avatarIndex, a.id)}
                     alt=""
-                    width={48}
-                    height={48}
-                    style={{ borderRadius: 12, display: "block", flex: "none" }}
+                    width={52}
+                    height={52}
+                    style={{ borderRadius: 14, display: "block", flex: "none" }}
                   />
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 6,
+                        gap: 8,
                         minWidth: 0,
                       }}
                     >
                       <strong
                         style={{
                           fontFamily: "var(--font-display)",
-                          fontSize: 16,
+                          fontSize: 17,
                           color: "var(--ink-1)",
                           whiteSpace: "nowrap",
                           overflow: "hidden",
@@ -141,14 +147,73 @@ export default async function AgentsPage({
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>
-                      {a.brandName?.trim() || "No brand set"}
-                    </div>
+                    {a.brandName?.trim() && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--ink-3)",
+                          marginTop: 2,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {a.brandName.trim()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* bio — the persona at a glance */}
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 13.5,
+                    lineHeight: 1.45,
+                    color: bio ? "var(--ink-2)" : "var(--ink-4)",
+                    fontStyle: bio ? "normal" : "italic",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {bio || "No bio yet — train this agent to add one."}
+                </p>
+
+                {/* audience */}
+                <div>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "var(--ink-4)",
+                    }}
+                  >
+                    Audience
+                  </span>
+                  <div
+                    style={{
+                      fontSize: 12.5,
+                      lineHeight: 1.4,
+                      color: audience ? "var(--ink-2)" : "var(--ink-4)",
+                      fontStyle: audience ? "normal" : "italic",
+                      marginTop: 1,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {audience || "Not set yet"}
                   </div>
                 </div>
 
                 {/* training meter */}
-                <div>
+                <div style={{ marginTop: "auto" }}>
                   <div
                     style={{
                       display: "flex",
@@ -195,21 +260,15 @@ export default async function AgentsPage({
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    marginTop: "auto",
-                  }}
-                >
+                {/* primary actions */}
+                <div style={{ display: "flex", gap: 8 }}>
                   <ButtonLink
                     href={`/app/seeds?agent=${a.id}`}
                     variant="primary"
                     size="sm"
                     icon="plus"
                     title={`Start a new blog seed written by ${name}`}
+                    style={{ flex: 1, justifyContent: "center" }}
                   >
                     New seed
                   </ButtonLink>
@@ -217,31 +276,48 @@ export default async function AgentsPage({
                     href={`/app/agents/${a.id}`}
                     variant="ghost"
                     size="sm"
+                    style={{ flex: 1, justifyContent: "center" }}
                   >
                     Train
                   </ButtonLink>
-                  {!a.isDefault && (
-                    <form action={setDefaultAgentAction}>
-                      <input type="hidden" name="agentId" value={a.id} />
-                      <Button type="submit" variant="ghost" size="sm">
-                        Make default
-                      </Button>
-                    </form>
-                  )}
-                  {agents.length > 1 && (
-                    <form action={deleteAgentAction} style={{ marginLeft: "auto" }}>
-                      <input type="hidden" name="agentId" value={a.id} />
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="sm"
-                        title="Delete this agent. Seeds using it fall back to your default agent."
-                      >
-                        Delete
-                      </Button>
-                    </form>
-                  )}
                 </div>
+
+                {/* secondary actions */}
+                {(!a.isDefault || canDelete) && (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                      paddingTop: "var(--s-2)",
+                      borderTop: "1px solid var(--hairline)",
+                    }}
+                  >
+                    {!a.isDefault ? (
+                      <form action={setDefaultAgentAction}>
+                        <input type="hidden" name="agentId" value={a.id} />
+                        <button type="submit" className="agent-card-link">
+                          Make default
+                        </button>
+                      </form>
+                    ) : (
+                      <span />
+                    )}
+                    {canDelete && (
+                      <form action={deleteAgentAction}>
+                        <input type="hidden" name="agentId" value={a.id} />
+                        <button
+                          type="submit"
+                          className="agent-card-link --danger"
+                          title="Delete this agent. Seeds using it fall back to your default agent."
+                        >
+                          Delete
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
               </li>
             );
           })}
