@@ -1,11 +1,18 @@
 import { agentAvatar, type Agent } from "@/lib/agent";
 
+/** Collapse whitespace and trim to a short, single-line-ish snippet. */
+function snippet(text: string | null | undefined, max = 150): string {
+  if (!text) return "";
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
 /**
- * Rich agent selector: radio-card per agent showing the avatar, name, default
- * badge, and a summary of the audience it's trained for — so a user knows
- * *who* they're picking, not just a name. Pure radios + CSS (`:has`), so it
- * works inside a server-action form with no client JS. Submits `name`
- * (default "agentId") as the chosen agent id.
+ * Rich agent selector: a radio-card per agent showing the avatar, name, default
+ * badge, and a mini bio — a snippet of its voice and the audience it targets —
+ * so a user connects with *who* they're picking, not just a name. Pure radios +
+ * CSS (`:has`), so it works inside a server-action form with no client JS.
+ * Submits `name` (default "agentId") as the chosen agent id.
  */
 export function AgentPicker({
   agents,
@@ -20,7 +27,8 @@ export function AgentPicker({
     <div className="agent-picker">
       {agents.map((a) => {
         const display = a.agentName?.trim() || "Untitled agent";
-        const audience = a.audience?.trim();
+        const voice = snippet(a.voice);
+        const audience = snippet(a.audience);
         return (
           <label key={a.id} className="agent-option">
             <input
@@ -45,16 +53,16 @@ export function AgentPicker({
                 )}
               </span>
               <span
-                className={`agent-option__aud${audience ? "" : " agent-option__aud--empty"}`}
+                className={`agent-option__meta${voice ? "" : " agent-option__meta--empty"}`}
               >
-                {audience ? (
-                  <>
-                    <span className="agent-option__aud-label">Audience:</span>{" "}
-                    {audience}
-                  </>
-                ) : (
-                  "No audience set yet"
-                )}
+                <span className="agent-option__meta-label">Voice</span>{" "}
+                {voice || "No voice trained yet"}
+              </span>
+              <span
+                className={`agent-option__meta${audience ? "" : " agent-option__meta--empty"}`}
+              >
+                <span className="agent-option__meta-label">Audience</span>{" "}
+                {audience || "No audience set yet"}
               </span>
             </span>
             <span className="agent-option__check" aria-hidden />

@@ -158,7 +158,7 @@ export default async function SeedsPage({
                 className="field-label"
                 style={{ display: "block", marginBottom: 6 }}
               >
-                Written by
+                Choose your author
               </span>
               <AgentPicker agents={agents} selectedId={selectedAgentId} />
               <div style={{ marginTop: "var(--s-3)" }}>

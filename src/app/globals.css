@@ -627,7 +627,7 @@ h1, h2, h3, h4,
   border-radius: 999px;
   padding: 1px 6px;
 }
-.agent-option__aud {
+.agent-option__meta {
   font-size: 12.5px;
   line-height: 1.45;
   color: var(--ink-2);
@@ -636,14 +636,15 @@ h1, h2, h3, h4,
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.agent-option__aud-label {
+.agent-option__meta-label {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
-.agent-option__aud--empty { color: var(--ink-4); font-style: italic; }
+.agent-option__meta--empty { color: var(--ink-4); font-style: italic; }
+.agent-option__meta--empty .agent-option__meta-label { font-style: normal; }
 /* Right-hand selection indicator (custom radio that fills + checks). */
 .agent-option__check {
   flex: none;
