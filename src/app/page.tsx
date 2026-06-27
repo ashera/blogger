@@ -4,7 +4,7 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
 import { brandProfileCompleteness } from "@/lib/brand-score";
-import { getDefaultAgent } from "@/lib/agents";
+import { listAgents } from "@/lib/agents";
 import { agentAvatar, agentDisplayName } from "@/lib/agent";
 import { ButtonLink } from "./_components/ui";
 
@@ -105,7 +105,7 @@ const STEPS: Array<{ n: string; title: string; desc: string }> = [
   },
 ];
 
-/** Encouragement copy for the agent-training meter. */
+/** Encouragement copy for the single-agent training meter. */
 function brandMeterMessage(pct: number, name: string): string {
   if (pct >= 100) return `Refine ${name}'s training`;
   if (pct === 0) return `Start training ${name}`;
@@ -114,13 +114,28 @@ function brandMeterMessage(pct: number, name: string): string {
   return `Almost there — finish ${name}'s training`;
 }
 
+/** Nudge for the multi-agent stable card: point at the least-trained agent. */
+function stableMessage(avg: number, leastName: string, leastPct: number): string {
+  if (avg >= 100) return "All agents trained — refine them";
+  return `Train ${leastName} (${leastPct}%)`;
+}
+
 export default async function Home() {
   const user = await getCurrentUser();
-  const [latestPost, agent] = await Promise.all([
+  const [latestPost, agents] = await Promise.all([
     getHeroPost(user?.id ?? null),
-    user ? getDefaultAgent(user.id) : Promise.resolve(null),
+    user ? listAgents(user.id) : Promise.resolve([]),
   ]);
-  const brandPct = agent ? brandProfileCompleteness(agent) : null;
+  // The hero "stable" card: average training across the user's agents, plus
+  // the one most in need of work to drive the nudge.
+  const scored = agents.map((a) => ({ a, pct: brandProfileCompleteness(a) }));
+  const avgPct = scored.length
+    ? Math.round(scored.reduce((s, x) => s + x.pct, 0) / scored.length)
+    : null;
+  const least = scored.length
+    ? scored.reduce((m, x) => (x.pct < m.pct ? x : m))
+    : null;
+  const single = scored.length === 1 ? scored[0]! : null;
 
   return (
     <div className="page">
@@ -171,12 +186,16 @@ export default async function Home() {
           </div>
         </div>
 
-        {user && agent && brandPct !== null && (
-          <Link href={`/app/agents/${agent.id}`} className="hero-brand-meter">
+        {user && single && avgPct !== null && (
+          // One agent → the familiar single-agent meter.
+          <Link
+            href={`/app/agents/${single.a.id}`}
+            className="hero-brand-meter"
+          >
             <div className="row" style={{ alignItems: "center", gap: 10 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={agentAvatar(agent.avatarIndex, agent.id)}
+                src={agentAvatar(single.a.avatarIndex, single.a.id)}
                 alt=""
                 width={36}
                 height={36}
@@ -184,20 +203,88 @@ export default async function Home() {
               />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span className="label" style={{ display: "block" }}>
-                  {agent.agentName?.trim()
-                    ? `Your agent · ${agent.agentName.trim()}`
+                  {single.a.agentName?.trim()
+                    ? `Your agent · ${single.a.agentName.trim()}`
                     : "Your blogging agent"}
                 </span>
                 <span style={{ fontSize: 12, opacity: 0.85 }}>
-                  Trained <strong>{brandPct}%</strong>
+                  Trained <strong>{single.pct}%</strong>
                 </span>
               </span>
             </div>
             <span className="msg">
-              {brandMeterMessage(brandPct, agentDisplayName(agent.agentName))} →
+              {brandMeterMessage(single.pct, agentDisplayName(single.a.agentName))} →
             </span>
             <div className="bar" aria-hidden>
-              <span style={{ width: `${brandPct}%` }} />
+              <span style={{ width: `${single.pct}%` }} />
+            </div>
+          </Link>
+        )}
+
+        {user && !single && avgPct !== null && least && (
+          // A stable of agents → cluster, average training, and a nudge at
+          // whichever agent most needs work.
+          <Link
+            href={avgPct >= 100 ? "/app/agents" : `/app/agents/${least.a.id}`}
+            className="hero-brand-meter"
+          >
+            <div className="row" style={{ alignItems: "center", gap: 10 }}>
+              <span style={{ display: "flex", flex: "none", alignItems: "center" }}>
+                {scored.slice(0, 3).map((x, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={x.a.id}
+                    src={agentAvatar(x.a.avatarIndex, x.a.id)}
+                    alt=""
+                    width={34}
+                    height={34}
+                    style={{
+                      borderRadius: 8,
+                      display: "block",
+                      border: "2px solid rgba(8,28,22,0.85)",
+                      marginLeft: i === 0 ? 0 : -12,
+                    }}
+                  />
+                ))}
+                {scored.length > 3 && (
+                  <span
+                    style={{
+                      marginLeft: -10,
+                      width: 34,
+                      height: 34,
+                      borderRadius: 8,
+                      border: "2px solid rgba(8,28,22,0.85)",
+                      background: "rgba(255,255,255,0.18)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    +{scored.length - 3}
+                  </span>
+                )}
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="label" style={{ display: "block" }}>
+                  Your stable · {agents.length} agents
+                </span>
+                <span style={{ fontSize: 12, opacity: 0.85 }}>
+                  Avg trained <strong>{avgPct}%</strong>
+                </span>
+              </span>
+            </div>
+            <span className="msg">
+              {stableMessage(
+                avgPct,
+                agentDisplayName(least.a.agentName),
+                least.pct,
+              )}{" "}
+              →
+            </span>
+            <div className="bar" aria-hidden>
+              <span style={{ width: `${avgPct}%` }} />
             </div>
           </Link>
         )}
