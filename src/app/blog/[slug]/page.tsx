@@ -5,6 +5,7 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
 import { renderMarkdown, stripMarkdown } from "@/lib/blog";
+import { proxyImagesInHtml } from "@/lib/image-proxy";
 import { LocalTime } from "../../_components/local-time";
 
 // Static-rendered with revalidation. The blog admin actions call
@@ -134,7 +135,9 @@ export default async function BlogPostPage({
     new Date(post.published_at).getTime() <= Date.now();
   if (!isLive && !isAdmin) notFound();
 
-  const html = renderMarkdown(post.body_md);
+  // Route any leftover absolute Pexels images (in posts created before
+  // self-hosting) through our proxy so they load behind corporate proxies.
+  const html = proxyImagesInHtml(renderMarkdown(post.body_md));
   const baseUrl = await getBaseUrl();
   const url = `${baseUrl}/blog/${post.slug}`;
   const description = post.excerpt ?? stripMarkdown(post.body_md, 160);

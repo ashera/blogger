@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { createSeed, deleteSeed } from "@/lib/actions/blog-builder";
 import { listAgents } from "@/lib/agents";
 import { agentAvatar } from "@/lib/agent";
+import { proxiedImage } from "@/lib/image-proxy";
 import { Button, Field, Input } from "../../_components/ui";
 import { SubmitButton } from "../../_components/submit-button";
 import { LocalTime } from "@/app/_components/local-time";
@@ -222,7 +223,7 @@ export default async function SeedsPage({
                 {s.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={s.image_url}
+                    src={proxiedImage(s.image_url)}
                     alt={s.image_alt ?? ""}
                     width={64}
                     height={64}

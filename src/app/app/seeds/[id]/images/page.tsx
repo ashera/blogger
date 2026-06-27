@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { proxiedImage } from "@/lib/image-proxy";
 import {
   addCustomKeywordImage,
   clearAllImages,
@@ -318,7 +319,7 @@ function ImageCard({
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={img.url_large}
+            src={proxiedImage(img.url_large)}
             alt={img.alt ?? fallbackAlt}
             style={{
               width: "100%",

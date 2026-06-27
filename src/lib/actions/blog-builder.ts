@@ -66,6 +66,7 @@ import { logExternalError } from "@/lib/error-log";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getPlanUsage } from "@/lib/plan";
 import { loadAgent, getDefaultAgent, loadSeedAgent } from "@/lib/agents";
+import { proxiedImage } from "@/lib/image-proxy";
 
 // ---------------------------------------------------------------------------
 // Routes + wizard helpers
@@ -922,6 +923,9 @@ type InjectImage = {
   photographer: string | null;
   alt: string | null;
   source_url: string | null;
+  /** Resolved same-origin src (self-hosted /api/blog/images/<id> or proxy).
+   *  Falls back to url_large if unset. */
+  src?: string;
 };
 
 const HERO_MAX_BYTES = 8 * 1024 * 1024;
@@ -961,7 +965,9 @@ async function finalizeAttempt(
   }
 }
 
-async function fetchHeroBytes(
+/** Download an image's bytes so we can self-host it (hero + in-body). Returns
+ *  null on any failure — callers fall back to the proxy, never a raw hotlink. */
+async function fetchImageBytes(
   source: { url_large: string } | null,
 ): Promise<{ mime: string; data: Buffer } | null> {
   if (!source) return null;
@@ -975,7 +981,7 @@ async function fetchHeroBytes(
     return { mime, data: Buffer.from(ab) };
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error("[post-gen] hero fetch failed (non-fatal)", err);
+    console.error("[post-gen] image fetch failed (non-fatal)", err);
     return null;
   }
 }
@@ -988,7 +994,8 @@ function imageHtml(
   const altText = escapeHtml((caption || img.alt || "").trim());
   const photog = escapeHtml(img.photographer ?? "Pexels");
   const link = escapeHtml(img.source_url ?? "https://www.pexels.com");
-  const url = escapeHtml(img.url_large);
+  // Prefer the resolved same-origin src; never embed a raw Pexels URL.
+  const url = escapeHtml(img.src ?? proxiedImage(img.url_large));
   const captionHtml = caption
     ? `${escapeHtml(caption)} — <a href="${link}" target="_blank" rel="noopener">Photo by ${photog} on Pexels</a>`
     : `<a href="${link}" target="_blank" rel="noopener">Photo by ${photog} on Pexels</a>`;
@@ -1276,13 +1283,16 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
 
   const heroSource = imageRes.rows[0] ?? null;
   const bodyImageRows = heroSource ? imageRes.rows.slice(1) : imageRes.rows;
-  const heroBytes = await fetchHeroBytes(heroSource);
+  const rawBody = String(parsed.body_markdown).trim();
 
-  const bodyMd = injectImagesIntoBody({
-    bodyMd: String(parsed.body_markdown).trim(),
-    placements: parsed.image_placements,
-    images: bodyImageRows,
-  });
+  // Download every image up front (outside the transaction) so we can
+  // self-host the bytes instead of hotlinking images.pexels.com. Bodies are
+  // built after the post id exists (image rows need it), so the post is
+  // inserted with the raw body first, then updated with self-hosted srcs.
+  const [heroBytes, bodyImageBytes] = await Promise.all([
+    fetchImageBytes(heroSource),
+    Promise.all(bodyImageRows.map((r) => fetchImageBytes(r))),
+  ]);
 
   const baseSlug =
     slugify(parsed.slug ?? "") || slugify(parsed.title) || `seed-${seedId}`;
@@ -1299,7 +1309,7 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
         `INSERT INTO blog_posts (slug, title, excerpt, body_md, author_id, seed_id)
          VALUES ($1, $2, $3, $4, $5::bigint, $6::bigint)
          RETURNING id::text`,
-        [slug, title, excerpt, bodyMd, me.id, seedId],
+        [slug, title, excerpt, rawBody, me.id, seedId],
       );
       rows = r.rows;
     } catch (err) {
@@ -1309,7 +1319,7 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
           `INSERT INTO blog_posts (slug, title, excerpt, body_md, author_id, seed_id)
            VALUES ($1, $2, $3, $4, $5::bigint, $6::bigint)
            RETURNING id::text`,
-          [slug, title, excerpt, bodyMd, me.id, seedId],
+          [slug, title, excerpt, rawBody, me.id, seedId],
         );
         rows = r.rows;
       } else {
@@ -1317,6 +1327,37 @@ export async function generateSeedInstance(formData: FormData): Promise<void> {
       }
     }
     const id = rows[0]!.id;
+
+    // Store each in-body image's bytes (post id now exists) and resolve its
+    // src to our own origin; fall back to the proxy if the download failed.
+    const bodyImages: InjectImage[] = [];
+    for (let i = 0; i < bodyImageRows.length; i++) {
+      const row = bodyImageRows[i]!;
+      const bytes = bodyImageBytes[i];
+      if (bytes) {
+        const imgRes = await client.query<{ id: string }>(
+          `INSERT INTO blog_images (post_id, mime_type, bytes, byte_size)
+           VALUES ($1::bigint, $2, $3, $4)
+           RETURNING id::text`,
+          [id, bytes.mime, bytes.data, bytes.data.length],
+        );
+        bodyImages.push({ ...row, src: `/api/blog/images/${imgRes.rows[0]!.id}` });
+      } else {
+        bodyImages.push({ ...row, src: proxiedImage(row.url_large) });
+      }
+    }
+
+    // Now that every body image has a same-origin src, build the final body
+    // and write it back.
+    const finalBody = injectImagesIntoBody({
+      bodyMd: rawBody,
+      placements: parsed.image_placements,
+      images: bodyImages,
+    });
+    await client.query(
+      `UPDATE blog_posts SET body_md = $2, updated_at = NOW() WHERE id = $1::bigint`,
+      [id, finalBody],
+    );
 
     if (heroBytes) {
       const imgRes = await client.query<{ id: string }>(

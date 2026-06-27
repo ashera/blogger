@@ -67,8 +67,15 @@ export async function getPostExport(
     ? `${base}/api/blog/posts/${post.id}/hero`
     : null;
 
+  // Self-hosted body images use root-relative srcs (/api/blog/images/…,
+  // /api/img?u=…). Make them absolute so they still load when pasted into an
+  // external site. (Protocol-relative // and already-absolute URLs untouched.)
+  const absolutize = (s: string): string =>
+    s.replace(/(\bsrc=")(\/(?!\/)[^"]*)(")/g, `$1${base}$2$3`);
+
   const title = post.title ?? "";
-  const bodyHtml = renderMarkdown(post.body_md ?? "");
+  const bodyMd = absolutize(post.body_md ?? "");
+  const bodyHtml = renderMarkdown(bodyMd);
 
   const htmlParts = [`<h1>${escapeHtml(title)}</h1>`];
   if (heroUrl) {
@@ -81,7 +88,7 @@ export async function getPostExport(
 
   const mdParts = [`# ${title}`];
   if (heroUrl) mdParts.push(`![${title}](${heroUrl})`);
-  mdParts.push(post.body_md ?? "");
+  mdParts.push(bodyMd);
   const markdown = mdParts.join("\n\n");
 
   return {
