@@ -97,7 +97,9 @@ export async function WizardShell({
           <header className="admin-header" style={{ margin: 0 }}>
             <p className="eyebrow">
               Seed wizard ·{" "}
-              {agentName ? `written by ${agentName}` : "written by your agent"}
+              {agentName
+                ? `Current author: ${agentName}`
+                : "Current author: your agent"}
               {!agentTrained && (
                 <>
                   {" "}
