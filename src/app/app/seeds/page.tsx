@@ -41,10 +41,10 @@ type SeedRow = {
 export default async function SeedsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; agent?: string }>;
 }) {
   const me = await requireUser();
-  const { saved, error } = await searchParams;
+  const { saved, error, agent } = await searchParams;
   const errorMessage = error ? ERRORS[error] ?? "Something went wrong." : null;
 
   const seedsRes = await query<SeedRow>(
@@ -76,7 +76,11 @@ export default async function SeedsPage({
   );
   const seeds = seedsRes.rows;
   const agents = await listAgents(me.id);
-  const defaultAgentId = agents.find((a) => a.isDefault)?.id ?? agents[0]?.id;
+  // Pre-select the agent from ?agent= (e.g. arriving from the stable page),
+  // falling back to the user's default.
+  const requestedAgent = agents.find((a) => a.id === agent)?.id;
+  const selectedAgentId =
+    requestedAgent ?? agents.find((a) => a.isDefault)?.id ?? agents[0]?.id;
 
   return (
     <div className="page admin-page" style={{ maxWidth: 880 }}>
@@ -138,7 +142,7 @@ export default async function SeedsPage({
                 id="agentId"
                 name="agentId"
                 className="input"
-                defaultValue={defaultAgentId}
+                defaultValue={selectedAgentId}
                 style={{ minWidth: 180 }}
               >
                 {agents.map((a) => (

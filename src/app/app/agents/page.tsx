@@ -205,10 +205,18 @@ export default async function AgentsPage({
                   }}
                 >
                   <ButtonLink
-                    href={`/app/agents/${a.id}`}
-                    variant="dark"
+                    href={`/app/seeds?agent=${a.id}`}
+                    variant="primary"
                     size="sm"
-                    iconRight="arrow"
+                    icon="plus"
+                    title={`Start a new blog seed written by ${name}`}
+                  >
+                    New seed
+                  </ButtonLink>
+                  <ButtonLink
+                    href={`/app/agents/${a.id}`}
+                    variant="ghost"
+                    size="sm"
                   >
                     Train
                   </ButtonLink>
