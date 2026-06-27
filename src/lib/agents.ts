@@ -25,8 +25,12 @@ type Row = {
   is_default: boolean;
 };
 
-const SELECT_COLS = `id::text, brand_name, site_url, audience, voice, humour,
-  perspective, stats, stories, avoid, agent_name, avatar_index, is_default`;
+// Fully qualified (bp.*) so these columns stay unambiguous even when the
+// query JOINs blog_seeds (which also has an `id`). Every query below aliases
+// brand_profiles AS bp.
+const SELECT_COLS = `bp.id::text AS id, bp.brand_name, bp.site_url, bp.audience,
+  bp.voice, bp.humour, bp.perspective, bp.stats, bp.stories, bp.avoid,
+  bp.agent_name, bp.avatar_index, bp.is_default`;
 
 function toAgent(row: Row): Agent {
   return {
@@ -50,9 +54,9 @@ function toAgent(row: Row): Agent {
 export async function listAgents(userId: string): Promise<Agent[]> {
   try {
     const r = await query<Row>(
-      `SELECT ${SELECT_COLS} FROM brand_profiles
-        WHERE user_id = $1::bigint
-        ORDER BY is_default DESC, id ASC`,
+      `SELECT ${SELECT_COLS} FROM brand_profiles bp
+        WHERE bp.user_id = $1::bigint
+        ORDER BY bp.is_default DESC, bp.id ASC`,
       [userId],
     );
     return r.rows.map(toAgent);
@@ -69,8 +73,8 @@ export async function loadAgent(
   if (!/^\d+$/.test(agentId)) return null;
   try {
     const r = await query<Row>(
-      `SELECT ${SELECT_COLS} FROM brand_profiles
-        WHERE id = $1::bigint AND user_id = $2::bigint LIMIT 1`,
+      `SELECT ${SELECT_COLS} FROM brand_profiles bp
+        WHERE bp.id = $1::bigint AND bp.user_id = $2::bigint LIMIT 1`,
       [agentId, userId],
     );
     return r.rows[0] ? toAgent(r.rows[0]) : null;

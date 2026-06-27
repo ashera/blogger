@@ -57,6 +57,13 @@ export async function setSeedAgentAction(formData: FormData): Promise<void> {
   const aid = agentId(formData);
   if (!sid || !aid) redirect("/app/seeds");
   await setSeedAgent(sid, me.id, aid);
+  // The wizard header and (on the generate step) the AI prompt are built from
+  // the seed's agent, so revalidate every step page for this seed — not just
+  // the resolver — or the client serves a stale render after the redirect.
+  for (const step of ["keywords", "cluster", "serp", "images", "generate"]) {
+    revalidatePath(`/app/seeds/${sid}/${step}`);
+  }
   revalidatePath(`/app/seeds/${sid}`);
+  revalidatePath("/app/seeds");
   redirect(`/app/seeds/${sid}`);
 }
