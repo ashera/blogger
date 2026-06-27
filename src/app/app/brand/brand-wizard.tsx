@@ -13,6 +13,7 @@ import {
 import {
   saveAgentDraft,
   generateBrandSections,
+  regenerateVoiceAndBio,
 } from "@/lib/actions/brand-wizard";
 import { Modal } from "@/app/_components/modal";
 import { WaitingMessage } from "@/app/_components/waiting-quotes";
@@ -115,6 +116,10 @@ export function BrandWizard({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const [genTitle, setGenTitle] = useState("Training your agent…");
+  // Which generator is running, so the error dialog retries the right one.
+  const [genMode, setGenMode] = useState<"full" | "voice">("full");
+  const [voiceConfirmOpen, setVoiceConfirmOpen] = useState(false);
   // Basics snapshot the current sections correspond to. Changing a Basics
   // field (vs this) is what triggers a background regeneration on continue.
   const [genBasics, setGenBasics] = useState(() => ({
@@ -200,6 +205,8 @@ export function BrandWizard({
       audience: values.audience,
     };
     setGenError(null);
+    setGenMode("full");
+    setGenTitle("Training your agent…");
     setGenerating(true);
     try {
       const res = await generateBrandSections(snap);
@@ -248,6 +255,48 @@ export function BrandWizard({
     setWarnOpen(false);
     await persist();
     await runGeneration();
+  }
+
+  /** Regenerate ONLY the Voice & tone section and the bio (from the voice
+   *  step). Confirms first if voice content would be overwritten. */
+  function askRegenVoice() {
+    if (values.voice.trim()) {
+      setVoiceConfirmOpen(true);
+      return;
+    }
+    void runRegenVoice();
+  }
+
+  async function runRegenVoice() {
+    setVoiceConfirmOpen(false);
+    if (!values.brandName.trim() || !values.audience.trim()) {
+      setGenError("Add your brand name and audience first.");
+      return;
+    }
+    setGenError(null);
+    setGenMode("voice");
+    setGenTitle("Refreshing voice & bio…");
+    setGenerating(true);
+    try {
+      const res = await regenerateVoiceAndBio({
+        brandName: values.brandName,
+        siteUrl: values.siteUrl,
+        audience: values.audience,
+        agentName: values.agentName,
+      });
+      if (!res.ok) {
+        setGenerating(false);
+        setGenError(res.error);
+        return;
+      }
+      const merged: Values = { ...values, voice: res.voice, bio: res.bio };
+      setValues(merged);
+      await persist(merged);
+      setGenerating(false);
+    } catch {
+      setGenerating(false);
+      setGenError("The AI couldn't refresh the voice — please try again.");
+    }
   }
 
   async function keepSections() {
@@ -397,6 +446,10 @@ export function BrandWizard({
               value={values[current.key]}
               onChange={(v) => setSection(current.key, v)}
               optional={!scoredKeys.has(current.key)}
+              bio={values.bio}
+              onBioChange={(v) => setField("bio", v)}
+              onRegenerate={askRegenVoice}
+              hasSectionContent={hasSectionContent}
             />
           )}
           {current.kind === "review" && (
@@ -480,10 +533,9 @@ export function BrandWizard({
             Regenerate your sections?
           </h2>
           <p style={{ color: "var(--ink-3)", fontSize: 14, lineHeight: 1.5, margin: "0 0 var(--s-4)" }}>
-            You changed your basics, and you have section content that may
-            include your own edits. Regenerating will{" "}
-            <strong>replace every section</strong> with fresh AI drafts from your
-            new details. This can&rsquo;t be undone.
+            You have section content that may include your own edits.
+            Regenerating will <strong>replace every section and the bio</strong>{" "}
+            with fresh AI drafts from your basics. This can&rsquo;t be undone.
           </p>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
             <button type="button" className="btn --ghost" onClick={keepSections}>
@@ -491,6 +543,41 @@ export function BrandWizard({
             </button>
             <button type="button" className="btn --primary" onClick={confirmRegenerate}>
               Regenerate sections
+            </button>
+          </div>
+        </Modal>
+
+        <Modal
+          open={voiceConfirmOpen}
+          onClose={() => setVoiceConfirmOpen(false)}
+          maxWidth={480}
+        >
+          <h2
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 22,
+              letterSpacing: "-0.01em",
+              color: "var(--ink-1)",
+              margin: "0 0 var(--s-2)",
+            }}
+          >
+            Regenerate voice &amp; bio?
+          </h2>
+          <p style={{ color: "var(--ink-3)", fontSize: 14, lineHeight: 1.5, margin: "0 0 var(--s-4)" }}>
+            This replaces the current <strong>Voice &amp; tone</strong> text and
+            the <strong>bio</strong> with a fresh AI draft. Your other sections
+            aren&rsquo;t touched. This can&rsquo;t be undone.
+          </p>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn --ghost"
+              onClick={() => setVoiceConfirmOpen(false)}
+            >
+              Keep mine
+            </button>
+            <button type="button" className="btn --primary" onClick={runRegenVoice}>
+              Regenerate
             </button>
           </div>
         </Modal>
@@ -505,7 +592,7 @@ export function BrandWizard({
           <div style={{ textAlign: "center" }}>
             {generating ? (
               <WaitingMessage
-                title="Training your agent…"
+                title={genTitle}
                 subtext="This can take a minute or two — please keep this open."
               />
             ) : (
@@ -531,7 +618,13 @@ export function BrandWizard({
                     >
                       Cancel
                     </button>
-                    <button type="button" className="btn --primary" onClick={runGeneration}>
+                    <button
+                      type="button"
+                      className="btn --primary"
+                      onClick={() =>
+                        genMode === "voice" ? runRegenVoice() : runGeneration()
+                      }
+                    >
                       Try again
                     </button>
                   </div>
@@ -730,24 +823,82 @@ function SectionStep({
   value,
   onChange,
   optional,
+  bio,
+  onBioChange,
+  onRegenerate,
+  hasSectionContent,
 }: {
   sectionKey: BrandSectionKey;
   value: string;
   onChange: (v: string) => void;
   optional: boolean;
+  bio: string;
+  onBioChange: (v: string) => void;
+  onRegenerate: () => void;
+  hasSectionContent: boolean;
 }) {
   const section = BRAND_SECTIONS[sectionKey];
+  // The persona's bio + a full retrain live with Voice & tone, where the
+  // persona is defined.
+  const isVoice = sectionKey === "voice";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <h2 className="card-heading" style={{ margin: 0 }}>
-          {section.label}
-        </h2>
-        {optional && <StatusChip status="optional" />}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <h2 className="card-heading" style={{ margin: 0 }}>
+            {section.label}
+          </h2>
+          {optional && <StatusChip status="optional" />}
+        </div>
+        {isVoice && hasSectionContent && (
+          <button
+            type="button"
+            className="btn --ghost --sm"
+            onClick={onRegenerate}
+            title="Re-draft the Voice & tone and the bio with AI"
+          >
+            ↻ Regenerate voice &amp; bio
+          </button>
+        )}
       </div>
       <p className="card-sub" style={{ margin: 0 }}>
         {section.intro}
       </p>
+
+      {isVoice && (
+        <label
+          className="form-field"
+          style={{
+            margin: 0,
+            padding: "var(--s-3) var(--s-4)",
+            background: "var(--surface-sunken)",
+            border: "1px solid var(--hairline)",
+            borderRadius: 12,
+          }}
+        >
+          <span className="field-label">Agent bio</span>
+          <textarea
+            className="input"
+            rows={2}
+            maxLength={240}
+            value={bio}
+            onChange={(e) => onBioChange(e.target.value)}
+            placeholder="A one-line intro to this agent — the AI writes one when you train; edit it freely."
+          />
+          <span className="field-help">
+            The short summary shown when you pick this agent. Keep it under ~20
+            words. {bio.length}/240
+          </span>
+        </label>
+      )}
       <textarea
         className="input"
         rows={section.rows}

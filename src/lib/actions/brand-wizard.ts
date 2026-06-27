@@ -225,3 +225,108 @@ ${sectionBlocks}`;
       : "";
   return { ok: true, sections, agentName, bio };
 }
+
+const VOICE_TOOL = {
+  name: "submit_voice",
+  description: "Submit the rewritten Voice & tone section and a persona bio.",
+  input_schema: {
+    type: "object",
+    properties: {
+      voice: { type: "string", description: BRAND_SECTIONS.voice.writeGuidance },
+      bio: {
+        type: "string",
+        description:
+          "A clean one-line bio of this persona in UNDER 20 words. Plain prose — NO markdown, headings, or bullets. Capture who they are and their writing vibe.",
+      },
+    },
+    required: ["voice", "bio"],
+  },
+} as const;
+
+/**
+ * Targeted regeneration of ONLY the Voice & tone section and the persona bio
+ * (a cheaper, focused call than re-drafting the whole profile). Keeps the
+ * existing agent name/persona if one is set.
+ */
+export async function regenerateVoiceAndBio(args: {
+  brandName: string;
+  siteUrl: string;
+  audience: string;
+  agentName: string;
+}): Promise<
+  | { ok: true; voice: string; bio: string }
+  | { ok: false; error: string }
+> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "You need to be signed in." };
+
+  const brandName = args.brandName.trim();
+  const audience = args.audience.trim();
+  if (!brandName || !audience) {
+    return {
+      ok: false,
+      error: "Add your brand name and audience first so the AI can tailor the voice.",
+    };
+  }
+
+  const rl = await enforceRateLimit(me.id, "brand");
+  if (!rl.ok) return { ok: false, error: rl.message };
+
+  const refs = loadBrandReferenceText();
+  const persona = args.agentName.trim();
+
+  const system = `You write the VOICE & TONE section of a brand profile — instructions to an AI blog writer on how to sound.
+
+You are given an EXAMPLE (the demo brand "frockd", an Australian pre-loved formal-dress marketplace, written as stylist "Lou"). Rewrite it for a DIFFERENT brand, described below${persona ? `, written as the persona "${persona}"` : ", inventing an appropriate author persona"}. Keep the same KIND of specific, opinionated detail and structure; drop every frockd-specific detail unless it genuinely applies. Write it as guidance to the writer, not as a blog post — tight and skimmable.
+
+Also write a "bio": a clean one-line description of this persona in UNDER 20 words, plain prose with NO markdown.
+
+Call submit_voice exactly once. No free text.`;
+
+  const user = `NEW BRAND
+Name: ${brandName}
+${args.siteUrl.trim() ? `Website: ${args.siteUrl.trim()}` : "Website: (none given)"}
+Audience: ${audience}
+${persona ? `Persona name: ${persona}` : ""}
+
+EXAMPLE Voice & tone (frockd) — rewrite for the new brand:
+"""
+${refs.voice ?? "(none)"}
+"""`;
+
+  const result = await callClaude({
+    system,
+    messages: [{ role: "user", content: user }],
+    tools: [VOICE_TOOL],
+    toolChoice: { type: "tool", name: "submit_voice" },
+    maxTokens: 2500,
+    logMeta: { context: "brand-voice-regen", userId: me.id },
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: "The AI couldn't refresh the voice just now — please try again.",
+    };
+  }
+
+  const call = result.toolUses.find((t) => t.name === "submit_voice");
+  const input = (call?.input ?? null) as Record<string, unknown> | null;
+  if (!input) {
+    return {
+      ok: false,
+      error:
+        result.stopReason === "max_tokens"
+          ? "The voice was too long to finish — please try again."
+          : "The AI didn't return a voice — please try again.",
+    };
+  }
+
+  const voice =
+    typeof input.voice === "string" ? input.voice.trim().slice(0, LIMITS.voice) : "";
+  const bio =
+    typeof input.bio === "string"
+      ? input.bio.replace(/\s+/g, " ").trim().slice(0, LIMITS.bio)
+      : "";
+  return { ok: true, voice, bio };
+}
