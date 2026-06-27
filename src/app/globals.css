@@ -607,7 +607,7 @@ h1, h2, h3, h4,
   display: block;
   flex: none;
 }
-.agent-option__body { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.agent-option__body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .agent-option__name {
   display: flex;
   align-items: center;
@@ -616,6 +616,26 @@ h1, h2, h3, h4,
   color: var(--ink-1);
   font-size: var(--t-body);
 }
+/* Collapsed teaser — one line, truncated. Hidden once the row is selected. */
+.agent-option__teaser {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+/* Full bio + audience — only for the selected row. */
+.agent-option__detail {
+  display: none;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 3px;
+}
+.agent-option:has(> input:checked) { align-items: flex-start; }
+.agent-option:has(> input:checked) .agent-option__teaser { display: none; }
+.agent-option:has(> input:checked) .agent-option__detail { display: flex; }
+.agent-option:has(> input:checked) .agent-option__check { margin-top: 4px; }
 .agent-option__badge {
   flex: none;
   font-family: var(--font-mono);
