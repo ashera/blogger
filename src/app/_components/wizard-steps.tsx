@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { listAgents, loadSeedAgent } from "@/lib/agents";
 import { setSeedAgentAction } from "@/lib/actions/agents";
 import { agentAvatar } from "@/lib/agent";
+import { AgentPicker } from "./agent-picker";
 
 // Wizard step order mirrors STEP_ORDER in blog-builder.ts. "done" is the
 // terminal state once at least one instance has been generated.
@@ -109,36 +110,34 @@ export async function WizardShell({
             </p>
             <h1>{title}</h1>
             {agents.length > 1 && seedAgent && (
-              <form
-                action={setSeedAgentAction}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginTop: 6,
-                }}
-              >
-                <input type="hidden" name="seedId" value={seedId} />
-                <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                  Switch agent:
-                </span>
-                <select
-                  name="agentId"
-                  defaultValue={seedAgent.id}
-                  className="input"
-                  style={{ height: 30, padding: "0 8px", fontSize: 13, width: "auto" }}
+              <details style={{ marginTop: 6 }}>
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontSize: 12,
+                    color: "var(--volt-700)",
+                    width: "fit-content",
+                  }}
                 >
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {(a.agentName?.trim() || "Untitled agent") +
-                        (a.isDefault ? " (default)" : "")}
-                    </option>
-                  ))}
-                </select>
-                <button type="submit" className="btn --ghost --sm">
-                  Apply
-                </button>
-              </form>
+                  Switch agent
+                </summary>
+                <form
+                  action={setSeedAgentAction}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: "var(--s-3)",
+                    marginTop: "var(--s-3)",
+                  }}
+                >
+                  <input type="hidden" name="seedId" value={seedId} />
+                  <AgentPicker agents={agents} selectedId={seedAgent.id} />
+                  <button type="submit" className="btn --primary --sm">
+                    Apply
+                  </button>
+                </form>
+              </details>
             )}
           </header>
         </div>

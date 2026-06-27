@@ -7,6 +7,7 @@ import { agentAvatar } from "@/lib/agent";
 import { proxiedImage } from "@/lib/image-proxy";
 import { Button, Field, Input } from "../../_components/ui";
 import { SubmitButton } from "../../_components/submit-button";
+import { AgentPicker } from "../../_components/agent-picker";
 import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
@@ -118,46 +119,55 @@ export default async function SeedsPage({
           action={createSeed}
           style={{
             display: "flex",
+            flexDirection: "column",
             gap: "var(--s-3)",
-            alignItems: "flex-end",
-            flexWrap: "wrap",
           }}
         >
-          <Field
-            label="New seed subject"
-            htmlFor="title"
-            help="The subject to write about — refine the exact keywords next."
+          <div
+            style={{
+              display: "flex",
+              gap: "var(--s-3)",
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+            }}
           >
-            <Input
-              id="title"
-              name="title"
-              required
-              maxLength={200}
-              placeholder="e.g. electric bikes for commuters"
-              style={{ minWidth: 320 }}
-            />
-          </Field>
-          {agents.length > 0 ? (
-            <Field label="Written by" htmlFor="agentId" help="Which agent writes it.">
-              <select
-                id="agentId"
-                name="agentId"
-                className="input"
-                defaultValue={selectedAgentId}
-                style={{ minWidth: 180 }}
-              >
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {(a.agentName?.trim() || "Untitled agent") +
-                      (a.isDefault ? " (default)" : "")}
-                  </option>
-                ))}
-              </select>
+            <Field
+              label="New seed subject"
+              htmlFor="title"
+              help="The subject to write about — refine the exact keywords next."
+            >
+              <Input
+                id="title"
+                name="title"
+                required
+                maxLength={200}
+                placeholder="e.g. electric bikes for commuters"
+                style={{ minWidth: 320 }}
+              />
             </Field>
-          ) : null}
-          <SubmitButton variant="primary" pendingLabel="Creating…">
-            Create seed →
-          </SubmitButton>
+            {agents.length === 0 && (
+              <SubmitButton variant="primary" pendingLabel="Creating…">
+                Create seed →
+              </SubmitButton>
+            )}
+          </div>
+
+          {agents.length > 0 && (
+            <div>
+              <span
+                className="field-label"
+                style={{ display: "block", marginBottom: 6 }}
+              >
+                Written by
+              </span>
+              <AgentPicker agents={agents} selectedId={selectedAgentId} />
+              <div style={{ marginTop: "var(--s-3)" }}>
+                <SubmitButton variant="primary" pendingLabel="Creating…">
+                  Create seed →
+                </SubmitButton>
+              </div>
+            </div>
+          )}
         </form>
         {agents.length === 0 && (
           <p className="card-sub" style={{ margin: "var(--s-2) 0 0" }}>
