@@ -7,7 +7,7 @@ import { agentAvatar } from "@/lib/agent";
 import { proxiedImage } from "@/lib/image-proxy";
 import { Button, Field, Input } from "../../_components/ui";
 import { SubmitButton } from "../../_components/submit-button";
-import { AgentPicker } from "../../_components/agent-picker";
+import { AuthorSelect } from "../../_components/author-select";
 import { LocalTime } from "@/app/_components/local-time";
 
 export const dynamic = "force-dynamic";
@@ -178,23 +178,19 @@ export default async function SeedsPage({
                 </SubmitButton>
               </div>
 
-              {/* right: author picker, height-capped so the card stays short */}
+              {/* right: current author + change-author modal */}
               <div style={{ minWidth: 0 }}>
                 <span
                   className="field-label"
                   style={{ display: "block", marginBottom: 6 }}
                 >
-                  Choose your author
+                  Your current author
                 </span>
-                <div
-                  style={{
-                    maxHeight: 132,
-                    overflowY: "auto",
-                    paddingRight: 4,
-                  }}
-                >
-                  <AgentPicker agents={agents} selectedId={selectedAgentId} />
-                </div>
+                <AuthorSelect
+                  agents={agents}
+                  initialSelectedId={selectedAgentId ?? agents[0].id}
+                  changeLabel="Change author"
+                />
               </div>
             </div>
           )}

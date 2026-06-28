@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { listAgents, loadSeedAgent } from "@/lib/agents";
 import { setSeedAgentAction } from "@/lib/actions/agents";
 import { agentAvatar } from "@/lib/agent";
-import { AgentPicker } from "./agent-picker";
+import { AuthorSelect } from "./author-select";
 
 // Wizard step order mirrors STEP_ORDER in blog-builder.ts. "done" is the
 // terminal state once at least one instance has been generated.
@@ -112,34 +112,16 @@ export async function WizardShell({
             </p>
             <h1>{title}</h1>
             {agents.length > 1 && seedAgent && (
-              <details style={{ marginTop: 6 }}>
-                <summary
-                  style={{
-                    cursor: "pointer",
-                    fontSize: 12,
-                    color: "var(--volt-700)",
-                    width: "fit-content",
-                  }}
-                >
-                  Switch agent
-                </summary>
-                <form
+              <div style={{ marginTop: 6 }}>
+                <AuthorSelect
+                  agents={agents}
+                  initialSelectedId={seedAgent.id}
                   action={setSeedAgentAction}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    gap: "var(--s-3)",
-                    marginTop: "var(--s-3)",
-                  }}
-                >
-                  <input type="hidden" name="seedId" value={seedId} />
-                  <AgentPicker agents={agents} selectedId={seedAgent.id} />
-                  <button type="submit" className="btn --primary --sm">
-                    Apply
-                  </button>
-                </form>
-              </details>
+                  hidden={{ seedId }}
+                  changeLabel="Switch agent"
+                  showCurrent={false}
+                />
+              </div>
             )}
           </header>
         </div>
