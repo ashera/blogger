@@ -85,7 +85,7 @@ export default async function SeedsPage({
     requestedAgent ?? agents.find((a) => a.isDefault)?.id ?? agents[0]?.id;
 
   return (
-    <div className="page admin-page" style={{ maxWidth: 880 }}>
+    <div className="page admin-page" style={{ maxWidth: 1120 }}>
       <header className="admin-header">
         <p className="eyebrow">Blog builder</p>
         <h1>Blog seeds</h1>
@@ -112,59 +112,89 @@ export default async function SeedsPage({
         style={{
           marginBottom: "var(--s-6)",
           padding: "var(--s-4)",
-          gap: "var(--s-2)",
+          gap: 0,
         }}
       >
-        <form
-          action={createSeed}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--s-3)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: "var(--s-3)",
-              alignItems: "flex-end",
-              flexWrap: "wrap",
-            }}
-          >
-            <Field
-              label="New seed subject"
-              htmlFor="title"
-              help="The subject to write about — refine the exact keywords next."
+        <form action={createSeed}>
+          {agents.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--s-3)",
+                alignItems: "flex-end",
+                flexWrap: "wrap",
+              }}
             >
-              <Input
-                id="title"
-                name="title"
-                required
-                maxLength={200}
-                placeholder="e.g. electric bikes for commuters"
-                style={{ minWidth: 320 }}
-              />
-            </Field>
-            {agents.length === 0 && (
+              <Field
+                label="New seed subject"
+                htmlFor="title"
+                help="The subject to write about — refine the exact keywords next."
+              >
+                <Input
+                  id="title"
+                  name="title"
+                  required
+                  maxLength={200}
+                  placeholder="e.g. electric bikes for commuters"
+                  style={{ minWidth: 320 }}
+                />
+              </Field>
               <SubmitButton variant="primary" pendingLabel="Creating…">
                 Create seed →
               </SubmitButton>
-            )}
-          </div>
-
-          {agents.length > 0 && (
-            <div>
-              <span
-                className="field-label"
-                style={{ display: "block", marginBottom: 6 }}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                gap: "var(--s-4)",
+                alignItems: "start",
+              }}
+            >
+              {/* left: subject + create */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--s-3)",
+                }}
               >
-                Choose your author
-              </span>
-              <AgentPicker agents={agents} selectedId={selectedAgentId} />
-              <div style={{ marginTop: "var(--s-3)" }}>
+                <Field
+                  label="New seed subject"
+                  htmlFor="title"
+                  help="The subject to write about — refine the exact keywords next."
+                >
+                  <Input
+                    id="title"
+                    name="title"
+                    required
+                    maxLength={200}
+                    placeholder="e.g. electric bikes for commuters"
+                  />
+                </Field>
                 <SubmitButton variant="primary" pendingLabel="Creating…">
                   Create seed →
                 </SubmitButton>
+              </div>
+
+              {/* right: author picker, height-capped so the card stays short */}
+              <div style={{ minWidth: 0 }}>
+                <span
+                  className="field-label"
+                  style={{ display: "block", marginBottom: 6 }}
+                >
+                  Choose your author
+                </span>
+                <div
+                  style={{
+                    maxHeight: 132,
+                    overflowY: "auto",
+                    paddingRight: 4,
+                  }}
+                >
+                  <AgentPicker agents={agents} selectedId={selectedAgentId} />
+                </div>
               </div>
             </div>
           )}
